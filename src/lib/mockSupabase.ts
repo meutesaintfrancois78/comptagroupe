@@ -398,7 +398,10 @@ export class MockSupabaseClient {
           },
         };
       },
-      then: (resolve: any, reject: any) => {
+      then<TResult1 = any, TResult2 = never>(
+        onfulfilled?: ((value: { data: any; error: any }) => TResult1 | PromiseLike<TResult1>) | null,
+        onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+      ): Promise<TResult1 | TResult2> {
         // Handle Joins for expenses
         let result = [...filteredData];
         if (tableName === 'expenses') {
@@ -417,7 +420,7 @@ export class MockSupabaseClient {
             secondary_unit: self.db.units.find((u) => u.id === prof.secondary_unit_id),
           }));
         }
-        return Promise.resolve({ data: result, error: null }).then(resolve, reject);
+        return Promise.resolve({ data: result, error: null }).then(onfulfilled, onrejected);
       },
     };
 
