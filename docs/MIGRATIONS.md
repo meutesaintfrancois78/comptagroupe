@@ -3,7 +3,7 @@
 Ce guide explique quelles migrations SQL existent, dans quel ordre les lancer et comment vérifier qu'elles sont bien passées. Chaque bloc de code se copie avec le bouton en haut à droite du bloc sur GitHub.
 
 > [!NOTE]
-> **Base de test à jour au 09/11/2026** : les migrations jusqu'à `20261109000002` sont appliquées et les justificatifs rangés (voir le [journal](#journal-des-migrations-appliquées)). Ce qui suit sert pour une autre base, ou pour comprendre ce qui a été fait.
+> **Base de test à jour au 09/11/2026** : les migrations jusqu'à `20261109000002` sont appliquées (`20261109000003` : à lancer) et les justificatifs rangés (voir le [journal](#journal-des-migrations-appliquées)). Ce qui suit sert pour une autre base, ou pour comprendre ce qui a été fait.
 
 > [!IMPORTANT]
 > **Sur une base qui n'est pas encore à jour :** lancer `20261109000000`, puis `20261109000001`, puis ranger les anciens justificatifs (étapes 1 à 6). Tant que ce n'est pas fait :
@@ -39,6 +39,7 @@ Les migrations sont dans [`supabase/migrations/`](../supabase/migrations). Elles
 | 4 | [`20261109000000_audit_fixes_complete.sql`](../supabase/migrations/20261109000000_audit_fixes_complete.sql) | Colonnes `email` et `requested_unit_id`, protection des profils et des dépenses, inscription en attente, bucket des justificatifs |
 | 5 | [`20261109000001_securite_complements.sql`](../supabase/migrations/20261109000001_securite_complements.sql) | Création de dépense protégée, création de profil limitée, stockage cloisonné par unité, maintenance SQL possible |
 | 6 | [`20261109000002_connexion_google.sql`](../supabase/migrations/20261109000002_connexion_google.sql) | Prénom et nom depuis Google à l'inscription, choix de l'unité en fin d'inscription. Voir [CONNEXION-GOOGLE.md](CONNEXION-GOOGLE.md) |
+| 7 | [`20261109000003_remboursement_definitif.sql`](../supabase/migrations/20261109000003_remboursement_definitif.sql) | Remboursement définitif : une dépense « Remboursée » ne peut plus revenir « À rembourser », même par un admin. Redéfinit `protect_expense_updates` : à relancer après `20261109000001` si celle-ci est relancée |
 
 Autres fichiers de `supabase/` :
 
