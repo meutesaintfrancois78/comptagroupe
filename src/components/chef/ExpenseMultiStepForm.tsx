@@ -129,6 +129,14 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
     }
   }, [amountInput, categoryId, customCategory, paymentMethod, date, comment, isSubmitted]);
 
+  // « Annuler » abandonne la dépense : le brouillon ne sert qu'en cas de coupure, pas après une annulation
+  const handleCancel = () => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {}
+    onCancel();
+  };
+
   // Détecter si la catégorie sélectionnée est "Autre"
   const selectedCatObj = categories.find((c) => c.id === categoryId);
   const isAutre = selectedCatObj?.name.toLowerCase() === 'autre';
@@ -364,7 +372,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
             {errorBanner}
           </div>
           <StepNav>
-            <Button variant="neutral" className={navBtn} onClick={onCancel}>
+            <Button variant="neutral" className={navBtn} onClick={handleCancel}>
               Annuler
             </Button>
             <Button variant="primary" className={navBtn} onClick={handleNext}>
