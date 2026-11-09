@@ -15,7 +15,6 @@ import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 
 const SUBJECT_PREFIX = '[Comptabilité groupe]';
-const APP_URL = 'https://comptagroupe.vercel.app';
 
 type Req = { method?: string; headers: Record<string, string | string[] | undefined>; body?: any };
 type Res = { status: (code: number) => Res; json: (body: unknown) => void };
@@ -86,20 +85,18 @@ export default async function handler(req: Req, res: Res) {
     '',
     `Ta dépense de ${amount} du ${dateFr(exp.date)} (${motif}${unit?.name ? `, ${unit.name}` : ''}) a été remboursée.`,
     '',
-    `Tu peux la retrouver dans l'appli : ${APP_URL}`,
+    "Tu peux la retrouver dans l'appli Compta Groupe, rubrique « Dépenses de l'unité ».",
+    'Une question ? Réponds simplement à cet email.',
     '',
     'Merci pour ton engagement !',
     'La trésorerie du groupe Saint-Martin',
-    '',
-    '— Email automatique, merci de ne pas y répondre.',
   ];
   const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1f2937">
 <p>Bonjour ${escapeHtml(firstName)},</p>
 <p>Ta dépense de <strong>${escapeHtml(amount)}</strong> du ${escapeHtml(dateFr(exp.date))}
 (${escapeHtml(motif)}${unit?.name ? `, ${escapeHtml(unit.name)}` : ''}) <strong>a été remboursée</strong>.</p>
-<p><a href="${APP_URL}">Ouvrir l'appli Compta Groupe</a></p>
+<p>Tu peux la retrouver dans l'appli Compta Groupe, rubrique « Dépenses de l'unité ».<br>Une question ? Réponds simplement à cet email.</p>
 <p>Merci pour ton engagement !<br>La trésorerie du groupe Saint-Martin</p>
-<p style="color:#6b7280;font-size:13px">Email automatique, merci de ne pas y répondre.</p>
 </div>`;
 
   const port = Number(process.env.SMTP_PORT || 465);
@@ -114,7 +111,7 @@ export default async function handler(req: Req, res: Res) {
     await transporter.sendMail({
       from: { name: process.env.MAIL_FROM_NAME || 'Compta Groupe Saint-Martin', address: smtpUser },
       to,
-      subject: `${SUBJECT_PREFIX} Ta dépense de ${amount} a été remboursée`,
+      subject: `${SUBJECT_PREFIX} Remboursement de ta dépense du ${dateFr(exp.date)}`,
       text: lines.join('\n'),
       html,
     });

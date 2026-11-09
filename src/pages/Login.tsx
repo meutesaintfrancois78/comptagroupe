@@ -113,9 +113,9 @@ export const Login: React.FC = () => {
       if (error) {
         const msg = error.message || '';
         if (msg.includes('Email not confirmed')) {
-          setErrorMsg("Adresse email non confirmée. Désactive 'Confirm email' dans Supabase (Auth > Providers > Email) ou confirme ton email.");
+          setErrorMsg("Adresse email pas encore confirmée : clique sur le lien reçu par email à l'inscription (regarde aussi dans les spams).");
         } else if (msg.includes('rate limit')) {
-          setErrorMsg("Limite d'envoi d'emails atteinte sur Supabase. Désactive 'Confirm email' dans les réglages Supabase pour contourner.");
+          setErrorMsg("Trop de tentatives en peu de temps. Réessaie dans quelques minutes.");
         } else if (msg.includes('Invalid login credentials')) {
           setErrorMsg('Identifiant ou mot de passe incorrect.');
         } else {
@@ -144,7 +144,7 @@ export const Login: React.FC = () => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const { error } = await signUp({
+      const { error, needsEmailConfirmation } = await signUp({
         email,
         password,
         firstName: firstName.trim(),
@@ -154,7 +154,11 @@ export const Login: React.FC = () => {
       if (error) {
         setErrorMsg(error.message || "Erreur lors de l'inscription.");
       } else {
-        setSuccessMsg('Compte créé ! Un admin du groupe va valider ta demande.');
+        setSuccessMsg(
+          needsEmailConfirmation
+            ? `Compte créé ! Ouvre l'email de confirmation envoyé à ${email.trim()} et clique sur le lien (regarde aussi dans les spams). Un admin du groupe validera ensuite ta demande.`
+            : 'Compte créé ! Un admin du groupe va valider ta demande.'
+        );
       }
     } finally {
       setIsLoading(false);

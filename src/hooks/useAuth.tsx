@@ -18,7 +18,7 @@ interface AuthContextType {
   profileError: string | null;
   isMock: boolean;
   signIn: (email: string, password?: string) => Promise<{ error: Error | null }>;
-  signUp: (data: SignUpData) => Promise<{ error: Error | null }>;
+  signUp: (data: SignUpData) => Promise<{ error: Error | null; needsEmailConfirmation?: boolean }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
@@ -212,7 +212,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     await refreshProfile();
-    return { error: null };
+    // Sans session, Supabase attend que le chef clique le lien de confirmation reçu par email
+    return { error: null, needsEmailConfirmation: !session && !isMockMode };
   };
 
   const signOut = async () => {

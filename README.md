@@ -115,7 +115,7 @@ Avec **Continuer avec Google**, n'importe quel compte Google peut aussi s'inscri
 ### Admin
 
 - **Fenêtre « Demandes en attente »**, imposée et rappelée toutes les 3 minutes tant qu'il reste des comptes à valider, des demandes de changement d'unité ou des **remboursements à faire** ; « Voir les remboursements » ouvre les dépenses filtrées sur « À rembourser ».
-- **Email de remboursement** : cocher « Remboursée » envoie au chef un email « [Comptabilité groupe] Ta dépense de … a été remboursée » (SMTP Gmail, configuration dans **[docs/EMAILS.md](docs/EMAILS.md)**). Le message affiché dit si l'email est parti.
+- **Email de remboursement** : cocher « Remboursée » envoie au chef un email « [Comptabilité groupe] Remboursement de ta dépense du … » (SMTP Gmail, configuration dans **[docs/EMAILS.md](docs/EMAILS.md)**). Le message affiché dit si l'email est parti.
 - **Dépenses** : filtres par unité, chef et remboursement ; case « Remboursée » pour l'argent perso ; modification, historique, suppression.
 - **Exports** : CSV pour Excel (point-virgule, UTF-8 avec BOM, colonnes au choix, caractères de formule `= + - @` retirés en tête de champ) et ZIP des justificatifs renommés `AAAA-MM-JJ_Unite_MontantEUR.ext`.
 - **Comptes** : email affiché, fiche avec unités, rôle et statut ; impossible de retirer le dernier admin actif.
