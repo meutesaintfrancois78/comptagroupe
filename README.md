@@ -114,7 +114,8 @@ Avec **Continuer avec Google**, n'importe quel compte Google peut aussi s'inscri
 
 ### Admin
 
-- **Fenêtre « Demandes en attente »**, imposée et rappelée toutes les 3 minutes tant qu'il reste des comptes à valider, des demandes de changement d'unité ou des **remboursements à faire** ; « Voir les remboursements » ouvre les dépenses filtrées sur « À rembourser ». Aucun email n'est envoyé pour l'instant.
+- **Fenêtre « Demandes en attente »**, imposée et rappelée toutes les 3 minutes tant qu'il reste des comptes à valider, des demandes de changement d'unité ou des **remboursements à faire** ; « Voir les remboursements » ouvre les dépenses filtrées sur « À rembourser ».
+- **Email de remboursement** : cocher « Remboursée » envoie au chef un email « [Comptabilité groupe] Ta dépense de … a été remboursée » (SMTP Gmail, configuration dans **[docs/EMAILS.md](docs/EMAILS.md)**). Le message affiché dit si l'email est parti.
 - **Dépenses** : filtres par unité, chef et remboursement ; case « Remboursée » pour l'argent perso ; modification, historique, suppression.
 - **Exports** : CSV pour Excel (point-virgule, UTF-8 avec BOM, colonnes au choix, caractères de formule `= + - @` retirés en tête de champ) et ZIP des justificatifs renommés `AAAA-MM-JJ_Unite_MontantEUR.ext`.
 - **Comptes** : email affiché, fiche avec unités, rôle et statut ; impossible de retirer le dernier admin actif.
@@ -132,6 +133,7 @@ Avec **Continuer avec Google**, n'importe quel compte Google peut aussi s'inscri
 - **Justificatifs** dans un stockage privé, rangés par dossier d'unité (`<id de l'unité>/<fichier>`) et servis par liens signés d'une heure.
 - **Migrations** : lancées à la main dans l'éditeur SQL de Supabase. Ordre, contrôles, rangement des justificatifs, retour arrière et journal : **[docs/MIGRATIONS.md](docs/MIGRATIONS.md)**.
 - **Connexion Google** : configuration Google Cloud et Supabase pas à pas dans **[docs/CONNEXION-GOOGLE.md](docs/CONNEXION-GOOGLE.md)**.
+- **Emails** : fonction serveur Vercel `api/notifier-remboursement.ts`, envoi SMTP ; réglages dans **[docs/EMAILS.md](docs/EMAILS.md)**.
 
 ## 6. Développer en local
 
@@ -207,3 +209,4 @@ Si un push n'apparaît pas dans **Vercel → Deployments**, le relancer avec **�
 | Supprimer la page sandbox | `npm run clean:sandbox` |
 | Supprimer les tables de sauvegarde du 09/11/2026 | `public.sauvegarde_20261109_*` |
 | Rédiger les textes RGPD manquants | `src/components/legal/LegalModal.tsx` |
+| Envoyer les emails depuis l'adresse du trésorier au lieu de celle de la meute | Vercel → `SMTP_USER`, `SMTP_PASSWORD` ([docs/EMAILS.md](docs/EMAILS.md)) |

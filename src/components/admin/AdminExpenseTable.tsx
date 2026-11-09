@@ -9,7 +9,7 @@ import { Banner } from '@/components/ui/feedback';
 import { cn, formatCurrency, formatDateFr, sumAmounts, getChefsFilterList } from '@/lib/utils';
 import { ExpenseEditModal } from '@/components/chef/ExpenseEditModal';
 import { ExpenseHistoryModal } from '@/components/shared/ExpenseHistoryModal';
-import { supabase } from '@/lib/supabase';
+import { supabase, isMockMode } from '@/lib/supabase';
 
 interface AdminExpenseTableProps {
   expenses: Expense[];
@@ -94,6 +94,31 @@ function ActionIcon({
 
 const filterSelectClass = 'min-h-[44px] rounded-[10px] px-2 font-bold md:text-[13px]';
 
+
+/** Demande à la fonction serveur /api/notifier-remboursement d'envoyer l'email au chef */
+async function notifyReimbursement(expenseId: string): Promise<string> {
+  try {
+    const { data } = await (supabase as any).auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) return 'Email non envoyé (session expirée).';
+    const res = await fetch('/api/notifier-remboursement', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ expenseId }),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (out.sent) return `Email envoyé à ${out.to}.`;
+    const reasons: Record<string, string> = {
+      not_configured: "l'envoi d'emails n'est pas encore configuré",
+      no_email: "le chef n'a pas d'adresse email",
+      smtp_error: "le serveur d'envoi a refusé l'email",
+    };
+    return `Email non envoyé : ${reasons[out.reason] || 'erreur inattendue'}.`;
+  } catch {
+    return 'Email non envoyé : erreur réseau.';
+  }
+}
+
 export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
   expenses,
   units,
@@ -177,13 +202,16 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
       setErrorMsg(error.message || 'Erreur lors de la mise à jour du remboursement.');
       return;
     }
-    if (newStatus === 'reimbursed') {
-      setNotificationMsg(
-        `Dépense de ${exp.creator?.first_name || 'chef'} marquée comme remboursée.`
-      );
-      setTimeout(() => setNotificationMsg(null), 4000);
-    }
     onRefresh();
+    if (newStatus === 'reimbursed') {
+      const who = exp.creator?.first_name || 'chef';
+      setNotificationMsg(`Dépense de ${who} marquée comme remboursée.${isMockMode ? ' (démo : aucun email)' : ' Envoi de l\'email…'}`);
+      if (!isMockMode) {
+        const mail = await notifyReimbursement(exp.id);
+        setNotificationMsg(`Dépense de ${who} marquée comme remboursée. ${mail}`);
+      }
+      setTimeout(() => setNotificationMsg(null), 6000);
+    }
   };
 
   // Supprimer une dépense (admins uniquement)
