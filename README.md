@@ -136,6 +136,10 @@ bun run build
 bun run scripts/capture-all-screenshots.ts
 ```
 
+### Base de données
+
+Les migrations SQL se lancent à la main dans l'éditeur SQL de Supabase. Ordre, contrôles, rangement des justificatifs et retour arrière : **[docs/MIGRATIONS.md](docs/MIGRATIONS.md)**.
+
 ---
 
 ## ⚖️ 7. Réglementation, RGPD & Règle des 10 ans
