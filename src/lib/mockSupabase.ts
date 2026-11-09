@@ -292,10 +292,12 @@ export class MockSupabaseClient {
         };
       },
       signInWithPassword: async ({ email }: { email: string; password?: string }) => {
+        // Seulement la partie avant @ : le domaine « saint-martin » contient « martin » (Guillaume Martin)
+        const local = email.toLowerCase().split('@')[0];
         const found = this.db.profiles.find((p) =>
-          email.toLowerCase().includes(p.first_name.toLowerCase()) ||
-          email.toLowerCase().includes(p.last_name.toLowerCase()) ||
-          (p.role === 'admin' && email.includes('admin'))
+          local.includes(p.first_name.toLowerCase()) ||
+          local.includes(p.last_name.toLowerCase()) ||
+          (p.role === 'admin' && local.includes('admin'))
         );
         if (found) {
           this.db.currentUser = found;

@@ -6,6 +6,7 @@ import { Unit, Period, ExpenseCategory, Expense, Profile } from '@/types/databas
 import { Header, Footer } from '@/components/layout/Header';
 import { Login } from '@/pages/Login';
 import { PendingAccountScreen } from '@/components/chef/PendingAccountScreen';
+import { CompleteProfileScreen } from '@/components/chef/CompleteProfileScreen';
 import { ChefHome } from '@/components/chef/ChefHome';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { PendingValidationBanner } from '@/components/admin/PendingValidationBanner';
@@ -218,6 +219,11 @@ const AppContent: React.FC = () => {
         </div>
       </CenteredScreen>
     );
+  }
+
+  // 3a. Compte créé par Google sans unité : finir l'inscription (vrai nom, unité, CGU)
+  if (profile.status === 'pending' && profile.role === 'chef' && !profile.primary_unit_id) {
+    return <CompleteProfileScreen />;
   }
 
   // 3. Compte en attente de validation

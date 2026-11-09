@@ -19,6 +19,7 @@ interface AuthContextType {
   isMock: boolean;
   signIn: (email: string, password?: string) => Promise<{ error: Error | null }>;
   signUp: (data: SignUpData) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
@@ -37,14 +38,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const selfHealProfile = async (authUser: any): Promise<Profile | null> => {
     try {
       console.warn('[Self-Healing] Profil absent pour l’utilisateur authentifié. Création automatique...');
-      const { data: units } = await supabase.from('units').select('id').eq('is_active', true);
-      const defaultUnitId = units && units.length > 0 ? units[0].id : null;
-
       const meta = authUser.user_metadata || {};
       const emailPrefix = authUser.email ? authUser.email.split('@')[0] : 'Chef';
-      const firstName = meta.first_name || emailPrefix;
-      const lastName = meta.last_name || 'Saint-Martin';
-      const unitId = meta.primary_unit_id || defaultUnitId;
+      const fullName: string = (meta.full_name || meta.name || '').trim();
+      const firstName = meta.first_name || meta.given_name || fullName.split(' ')[0] || emailPrefix;
+      const lastName = meta.last_name || meta.family_name || fullName.split(' ').slice(1).join(' ') || 'Saint-Martin';
+      // Sans unité (connexion Google), l'appli demande de compléter l'inscription
+      const unitId = meta.primary_unit_id || null;
       // Un profil créé côté client est toujours un chef en attente : le rôle admin se donne côté admin
       const role = 'chef';
       const status = 'pending';
@@ -168,6 +168,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: null };
   };
 
+  // Redirige vers Google ; au retour, Supabase lit la session dans l'URL (detectSessionInUrl)
+  const signInWithGoogle = async () => {
+    if (isMockMode) {
+      return { error: new Error("La connexion Google n'est pas disponible en mode démo.") };
+    }
+    const { error } = await (supabase as any).auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin, queryParams: { prompt: 'select_account' } },
+    });
+    return { error: (error as Error | null) ?? null };
+  };
+
   const signUp = async ({ email, password = 'password', firstName, lastName, primaryUnitId }: SignUpData) => {
     setProfileError(null);
     const { data, error } = await supabase.auth.signUp({
@@ -247,6 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isMock: isMockMode,
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         resetPassword,
         refreshProfile,

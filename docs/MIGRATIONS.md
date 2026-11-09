@@ -26,7 +26,7 @@ Ce guide explique quelles migrations SQL existent, dans quel ordre les lancer et
 
 ## Les fichiers
 
-Les migrations sont dans [`supabase/migrations/`](../supabase/migrations). Elles se lancent **à la main, dans l'ordre**, depuis l'éditeur SQL de Supabase. Toutes peuvent être relancées sans effet de bord.
+Les migrations sont dans [`supabase/migrations/`](../supabase/migrations). Elles se lancent **à la main, dans l'ordre**, depuis l'éditeur SQL de Supabase. Toutes peuvent être relancées sans effet de bord. Seule précaution : `20261109000001` et `20261109000002` redéfinissent la même fonction `protect_profile_updates` ; si l'on relance `20261109000001`, relancer `20261109000002` juste après.
 
 | Ordre | Fichier | Ce qu'il fait |
 | :---: | :--- | :--- |
@@ -35,6 +35,7 @@ Les migrations sont dans [`supabase/migrations/`](../supabase/migrations). Elles
 | 3 | [`20261108000002_triggers.sql`](../supabase/migrations/20261108000002_triggers.sql) | Historique des modifications, garde-fou du dernier admin |
 | 4 | [`20261109000000_audit_fixes_complete.sql`](../supabase/migrations/20261109000000_audit_fixes_complete.sql) | Colonnes `email` et `requested_unit_id`, protection des profils et des dépenses, inscription en attente, bucket des justificatifs |
 | 5 | [`20261109000001_securite_complements.sql`](../supabase/migrations/20261109000001_securite_complements.sql) | Création de dépense protégée, création de profil limitée, stockage cloisonné par unité, maintenance SQL possible |
+| 6 | [`20261109000002_connexion_google.sql`](../supabase/migrations/20261109000002_connexion_google.sql) | Prénom et nom depuis Google à l'inscription, choix de l'unité en fin d'inscription. Voir [CONNEXION-GOOGLE.md](CONNEXION-GOOGLE.md) |
 
 Autres fichiers de `supabase/` :
 
@@ -191,7 +192,7 @@ Sur [comptagroupe.vercel.app](https://comptagroupe.vercel.app), avec les comptes
 
 Pour un nouveau projet Supabase : lancer dans l'ordre, chacun dans une nouvelle requête de l'éditeur SQL.
 
-1. Les cinq fichiers de [`supabase/migrations/`](../supabase/migrations), dans l'ordre du tableau [Les fichiers](#les-fichiers).
+1. Les six fichiers de [`supabase/migrations/`](../supabase/migrations), dans l'ordre du tableau [Les fichiers](#les-fichiers).
 2. [`supabase/seed.sql`](../supabase/seed.sql) : unités, catégories, première période.
 3. Pendant la phase de test seulement : [`supabase/seed_test_data.sql`](../supabase/seed_test_data.sql).
 
@@ -248,3 +249,4 @@ Supabase ne garde pas la trace des scripts lancés à la main. Noter ici chaque 
 | | test | `20261109000000` | | |
 | | test | `20261109000001` | | |
 | | test | justificatifs rangés (étape 5) | | |
+| | test | `20261109000002` (connexion Google) | | |
