@@ -52,9 +52,9 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex min-w-0 items-center gap-2.5">
             <span
               aria-hidden="true"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2.5 border-on-color bg-green text-[22px] text-on-color"
+              className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border-2.5 border-on-color bg-green"
             >
-              ⚜
+              <img src="/icons/icon-192.png?v=2" alt="" width={40} height={40} className="h-full w-full object-cover" />
             </span>
             <div className="flex min-w-0 flex-col">
               <span className="truncate text-[16px] font-extrabold leading-[1.1]">Compta Saint-Martin</span>

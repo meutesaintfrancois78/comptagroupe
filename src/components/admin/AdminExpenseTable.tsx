@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Download, Filter, History, Pencil, Trash2 } from 'lucide-react';
 import { Expense, ExpenseCategory, Unit, Profile, Period } from '@/types/database';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
@@ -191,6 +192,7 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
   // Case « Remboursée » (admin seulement, dépenses en argent perso) : confirmation, puis définitif
   const [confirmReimburse, setConfirmReimburse] = useState<Expense | null>(null);
   const [isReimbursing, setIsReimbursing] = useState(false);
+  const confirm = useConfirm();
 
   const handleConfirmReimbursed = async () => {
     const exp = confirmReimburse;
@@ -220,7 +222,7 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
 
   // Supprimer une dépense (admins uniquement)
   const handleDeleteExpense = async (expenseId: string) => {
-    if (!window.confirm('Es-tu certain de vouloir supprimer cette dépense ? Cette action est irréversible.')) {
+    if (!(await confirm({ title: 'Supprimer cette dépense ?', message: 'Cette action est irréversible.', confirmLabel: 'Supprimer', danger: true }))) {
       return;
     }
     setErrorMsg(null);
@@ -408,6 +410,21 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
         </div>
       </section>
 
+      {/* Total selon les filtres, juste sous les filtres */}
+      <div className="flex flex-col gap-0.5 rounded-[18px] border-2.5 border-line bg-surface2 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[14px] font-extrabold">Total · {countLabel}</span>
+          <span className="whitespace-nowrap text-[15px] font-extrabold text-success">
+            {formatCurrency(filteredTotal)}
+          </span>
+        </div>
+        {pendingReimbursementTotal > 0 && (
+          <span className="text-[13px] font-semibold text-muted">
+            dont {formatCurrency(pendingReimbursementTotal)} à rembourser
+          </span>
+        )}
+      </div>
+
       {/* Cartes sous 1024 px (2 colonnes entre 768 et 1023 px) */}
       <div className="flex flex-col gap-3 lg:hidden">
         {filteredExpenses.length === 0 ? (
@@ -454,20 +471,6 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
             })}
           </ul>
         )}
-
-        <div className="flex flex-col gap-0.5 rounded-[18px] border-2.5 border-line bg-surface2 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[14px] font-extrabold">Total · {countLabel}</span>
-            <span className="whitespace-nowrap text-[15px] font-extrabold text-success">
-              {formatCurrency(filteredTotal)}
-            </span>
-          </div>
-          {pendingReimbursementTotal > 0 && (
-            <span className="text-[13px] font-semibold text-muted">
-              dont {formatCurrency(pendingReimbursementTotal)} à rembourser
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Vrai tableau dès 1024 px : 9 colonnes à largeurs fixes, sans défilement horizontal */}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Profile, Unit, UserRole, AccountStatus } from '@/types/database';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { Badge } from '@/components/ui/badge';
 import { Field, Select } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
@@ -46,6 +47,19 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   onRefresh,
 }) => {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'date-desc' | 'date-asc'>('name-asc');
+  const sortedProfiles = React.useMemo(() => {
+    const byName = (a: Profile, b: Profile) =>
+      `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, 'fr', { sensitivity: 'base' });
+    const byDate = (a: Profile, b: Profile) => (a.created_at || '').localeCompare(b.created_at || '');
+    const list = [...profiles];
+    if (sortBy === 'name-asc') list.sort(byName);
+    if (sortBy === 'name-desc') list.sort((a, b) => byName(b, a));
+    if (sortBy === 'date-asc') list.sort(byDate);
+    if (sortBy === 'date-desc') list.sort((a, b) => byDate(b, a));
+    return list;
+  }, [profiles, sortBy]);
+  const confirm = useConfirm();
   const [form, setForm] = useState<SheetForm | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -117,7 +131,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     if (
       form.role === 'admin' &&
       target.role !== 'admin' &&
-      !window.confirm(`Confirmer la promotion de ${name} en tant qu'administrateur ?`)
+      !(await confirm({ title: `Passer ${name} administrateur ?`, message: 'Il aura accès à toutes les unités, aux comptes et aux exports.', confirmLabel: 'Promouvoir' }))
     ) {
       return;
     }
@@ -184,9 +198,29 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
       {errorMsg && <Banner tone="error">{errorMsg}</Banner>}
       {successMsg && <Banner tone="notice">{successMsg}</Banner>}
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[14px] font-bold text-muted">
+          {profiles.length} compte{profiles.length > 1 ? 's' : ''}
+        </span>
+        <label className="flex items-center gap-2 whitespace-nowrap text-[14px] font-bold">
+          Trier par
+          <Select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="w-auto min-w-[150px]"
+            aria-label="Trier les comptes"
+          >
+            <option value="name-asc">Nom A → Z</option>
+            <option value="name-desc">Nom Z → A</option>
+            <option value="date-desc">Inscrits récents</option>
+            <option value="date-asc">Inscrits anciens</option>
+          </Select>
+        </label>
+      </div>
+
       {/* Comptes : une colonne, deux dès 1024 px */}
       <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
-        {profiles.map((p) => {
+        {sortedProfiles.map((p) => {
           const name = fullName(p);
           const isMe = p.id === currentAdminId;
           const requested = p.requested_unit_id ? unitName(p.requested_unit_id) || 'unité inconnue' : null;

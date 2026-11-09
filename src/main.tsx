@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { AuthProvider } from './hooks/useAuth';
+import { ConfirmProvider } from './components/ui/confirm';
 import './index.css';
 
 // En prod, retirer les bases de démo laissées par les anciennes versions dans le navigateur
@@ -16,7 +17,9 @@ if (import.meta.env.PROD) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <ConfirmProvider>
+        <App />
+      </ConfirmProvider>
     </AuthProvider>
   </React.StrictMode>
 );

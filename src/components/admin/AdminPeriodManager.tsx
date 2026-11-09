@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Period, Expense } from '@/types/database';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { Badge } from '@/components/ui/badge';
 import { Field, Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
@@ -37,6 +38,7 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({ periods,
   const [newPeriodName, setNewPeriodName] = useState('');
   const [newPeriodType, setNewPeriodType] = useState<'year' | 'camp'>('year');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const confirm = useConfirm();
   const [busyPeriodId, setBusyPeriodId] = useState<string | null>(null);
 
   // Fenêtre de purge
@@ -53,9 +55,11 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({ periods,
   // Clôturer une période, avec export automatique obligatoire
   const handleClosePeriod = async (period: Period) => {
     if (
-      !window.confirm(
-        `Confirmer la clôture de la période "${period.name}" ?\nUn export automatique des comptes sera généré immédiatement.`
-      )
+      !(await confirm({
+        title: `Clôturer « ${period.name} » ?`,
+        message: 'Un export automatique des comptes sera généré immédiatement.',
+        confirmLabel: 'Clôturer',
+      }))
     ) {
       return;
     }
@@ -88,7 +92,7 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({ periods,
 
   // Rouvrir une période clôturée
   const handleReopenPeriod = async (period: Period) => {
-    if (!window.confirm(`Rouvrir la période "${period.name}" pour les chefs ?`)) return;
+    if (!(await confirm({ title: `Rouvrir « ${period.name} » ?`, message: 'Les chefs pourront de nouveau y déclarer et modifier des dépenses.', confirmLabel: 'Rouvrir' }))) return;
     setErrorMsg(null);
     setBusyPeriodId(period.id);
     try {

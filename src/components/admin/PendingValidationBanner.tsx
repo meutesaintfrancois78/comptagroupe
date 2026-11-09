@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Clock, Wallet } from 'lucide-react';
 import { Profile, Unit } from '@/types/database';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { Select } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { Banner, IconTile } from '@/components/ui/feedback';
@@ -82,6 +83,7 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const confirm = useConfirm();
   const [, setTick] = useState<number>(0);
 
   const unitRequests = profiles ? getUnitChangeRequests(profiles) : [];
@@ -139,6 +141,8 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
     setIsProcessing((prev) => ({ ...prev, [key]: true }));
     try {
       await action();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Action impossible.');
     } finally {
       setIsProcessing((prev) => ({ ...prev, [key]: false }));
     }
@@ -147,8 +151,15 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
   const handleValidateClick = (profileId: string) =>
     withProcessing(profileId, () => onValidate(profileId, selectedUnits[profileId] || units[0]?.id));
 
-  const handleRejectClick = (profileId: string) => {
-    if (!window.confirm('Confirmer le refus de cette demande de compte ?')) return;
+  const handleRejectClick = async (profileId: string) => {
+    const p = pendingProfiles.find((x) => x.id === profileId);
+    const ok = await confirm({
+      title: 'Refuser ce compte ?',
+      message: `${p ? `${p.first_name} ${p.last_name}` : 'Ce chef'} ne pourra pas accéder à l'appli. Tu pourras le réactiver plus tard depuis l'onglet Comptes.`,
+      confirmLabel: 'Refuser le compte',
+      danger: true,
+    });
+    if (!ok) return;
     return withProcessing(profileId, () => onReject(profileId));
   };
 

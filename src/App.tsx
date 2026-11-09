@@ -298,11 +298,13 @@ const AppContent: React.FC = () => {
           onOpenReimbursements={openReimbursements}
           units={units}
           onValidate={async (pId, uId) => {
-            await supabase.from('profiles').update({ status: 'active', primary_unit_id: uId }).eq('id', pId);
+            const { error } = await supabase.from('profiles').update({ status: 'active', primary_unit_id: uId }).eq('id', pId);
+            if (error) throw new Error(error.message);
             loadData();
           }}
           onReject={async (pId) => {
-            await supabase.from('profiles').update({ status: 'rejected' }).eq('id', pId);
+            const { error } = await supabase.from('profiles').update({ status: 'rejected' }).eq('id', pId);
+            if (error) throw new Error(error.message);
             loadData();
           }}
         />
