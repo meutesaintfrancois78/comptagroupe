@@ -202,6 +202,8 @@ Si un push n'apparaît pas dans **Vercel → Deployments**, le relancer avec **�
 
 ## 9. Avant la mise en production
 
+Checklist complète, à cocher : **[docs/AVANT-PROD.md](docs/AVANT-PROD.md)**. Les points principaux :
+
 | À faire | Où |
 | :--- | :--- |
 | Supprimer les comptes de test et cette liste du README | Supabase → Authentication ; section 3 |
