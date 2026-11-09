@@ -3,7 +3,7 @@
 Ce guide explique quelles migrations SQL existent, dans quel ordre les lancer et comment vérifier qu'elles sont bien passées. Chaque bloc de code se copie avec le bouton en haut à droite du bloc sur GitHub.
 
 > [!NOTE]
-> **Base de test à jour au 09/11/2026** : les migrations jusqu'à `20261109000002` sont appliquées (`20261109000003` : à lancer) et les justificatifs rangés (voir le [journal](#journal-des-migrations-appliquées)). Ce qui suit sert pour une autre base, ou pour comprendre ce qui a été fait.
+> **Base de test à jour au 09/11/2026** : les migrations jusqu'à `20261109000003` sont appliquées et les justificatifs rangés (voir le [journal](#journal-des-migrations-appliquées)). Ce qui suit sert pour une autre base, ou pour comprendre ce qui a été fait.
 
 > [!IMPORTANT]
 > **Sur une base qui n'est pas encore à jour :** lancer `20261109000000`, puis `20261109000001`, puis ranger les anciens justificatifs (étapes 1 à 6). Tant que ce n'est pas fait :
@@ -254,3 +254,4 @@ Supabase ne garde pas la trace des scripts lancés à la main. Noter ici chaque 
 | 09/11/2026 | test | `20261109000001` | Joseph (avec Claude) | contrôles de l'étape 4 au vert |
 | 09/11/2026 | test | justificatifs rangés (étape 5) | Joseph (avec Claude) | 5 fichiers déplacés depuis l'onglet Storage, `proof_path` mis à jour en SQL |
 | 09/11/2026 | test | `20261109000002` (connexion Google) | Joseph (avec Claude) | |
+| 09/11/2026 | test | `20261109000003` (remboursement définitif) | Joseph (avec Claude) | contrôle : `migration_3_ok = true`, trigger lié à `expenses` |

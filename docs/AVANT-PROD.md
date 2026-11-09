@@ -21,7 +21,7 @@ Ordre conseillé : 1 → 7. Faire une sauvegarde de la base avant l'étape 2 (vo
 
 - [ ] Retirer l'**admin automatique** de `ben.dupont@groupe-enf.fr` et `admin.dupont@groupe-enf.fr` dans `handle_new_user` (`supabase/migrations/20261109000002_connexion_google.sql`, ligne `IF new.email IN (...)`) : nouvelle migration qui redéfinit la fonction sans ce bloc.
 - [ ] Retirer la règle d'**insertion libre dans l'historique** (`history_insert_policy`, `20261108000001_rls.sql`) : l'historique doit être écrit seulement par les triggers.
-- [ ] Vérifier que `20261109000003_remboursement_definitif.sql` est appliquée.
+- [x] Vérifier que `20261109000003_remboursement_definitif.sql` est appliquée (fait sur la base de test le 09/11/2026).
 - [ ] Ne plus utiliser les scripts de test : `supabase/SET_ADMIN_BEN_DUPONT.sql`, `supabase/seed.sql`, `supabase/seed_test_data.sql`, `supabase/00_SETUP_COMPLET.sql`, `scripts/seed-complete-accounts.ts`, `scripts/upload-receipts-to-supabase.ts`, `scripts/generate-receipts.py` → les supprimer du dépôt.
 - [ ] Nommer le **premier vrai admin** à la main (`UPDATE profiles SET role = 'admin', status = 'active' WHERE email = '…';`).
 
