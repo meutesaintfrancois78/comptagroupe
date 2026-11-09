@@ -152,15 +152,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [refreshProfile, fetchProfile]);
 
+  // Pas d'écran de chargement global avant la réponse : il démonterait la page de connexion,
+  // et le message « Email ou mot de passe incorrect » serait perdu avec l'email saisi.
   const signIn = async (email: string, password: string = 'password') => {
-    setIsLoading(true);
     setProfileError(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setIsLoading(false);
       return { error: error as Error | null };
     }
     if (data?.user) {
+      setIsLoading(true);
       setUser(data.user as any);
       await fetchProfile(data.user.id, data.user);
     }
@@ -168,7 +169,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async ({ email, password = 'password', firstName, lastName, primaryUnitId }: SignUpData) => {
-    setIsLoading(true);
     setProfileError(null);
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -183,10 +183,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (error) {
-      setIsLoading(false);
       return { error: error as Error | null };
     }
 
+    setIsLoading(true);
     const session = (data as any)?.session;
     if (session && data?.user?.id && !isMockMode) {
       await supabase.from('profiles').insert({

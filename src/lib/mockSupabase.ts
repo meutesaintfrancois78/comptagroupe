@@ -303,11 +303,8 @@ export class MockSupabaseClient {
           this.notifyAuth('SIGNED_IN');
           return { data: { user: { id: found.id, email } }, error: null };
         }
-        // Fallback user
-        this.db.currentUser = this.db.profiles[0];
-        this.saveDB();
-        this.notifyAuth('SIGNED_IN');
-        return { data: { user: { id: this.db.currentUser.id, email } }, error: null };
+        // Email inconnu : même réponse que Supabase, pour tester le message d'erreur en démo
+        return { data: { user: null, session: null }, error: { message: 'Invalid login credentials', status: 400 } };
       },
       signUp: async ({ email, options }: any) => {
         const id = 'user-' + Date.now();

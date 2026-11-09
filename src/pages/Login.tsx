@@ -92,7 +92,7 @@ export const Login: React.FC = () => {
         } else if (msg.includes('rate limit')) {
           setErrorMsg("Limite d'envoi d'emails atteinte sur Supabase. Désactive 'Confirm email' dans les réglages Supabase pour contourner.");
         } else if (msg.includes('Invalid login credentials')) {
-          setErrorMsg('Email ou mot de passe incorrect.');
+          setErrorMsg('Identifiant ou mot de passe incorrect.');
         } else {
           setErrorMsg(msg || 'Erreur lors de la connexion.');
         }
