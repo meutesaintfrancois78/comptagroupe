@@ -11,7 +11,22 @@ Application mobile (PWA) pour que les chefs d'unité du **Groupe Saint-Martin** 
   <img src="docs/screenshots/14_admin_depenses_mobile.png" width="200" alt="Tableau admin sur téléphone" />
 </p>
 
+## À faire
+
+Liste de suivi de la phase de test, mise à jour au 09/11/2026. Cocher (`[x]`) au fur et à mesure.
+
+- [ ] **Réveil de la base, action GitHub** : vérifier les secrets `SUPABASE_URL` et `SUPABASE_ANON_KEY` du dépôt, puis lancer une fois « Run workflow » → [docs/REVEIL-BASE.md](docs/REVEIL-BASE.md#action-github-filet)
+- [ ] **Réveil de la base, cron-job.org** : créer le compte et la tâche tous les 2 jours, avec l'alerte email → [docs/REVEIL-BASE.md](docs/REVEIL-BASE.md#cron-joborg-principal)
+- [ ] **Tester les exports complets** en admin (CSV + ZIP des justificatifs, export à la clôture d'une période) → [section 4](#4-fonctionnalités)
+- [ ] **Emails de remboursement** : vérifier qu'ils n'arrivent plus en spam avec le nouveau texte → [docs/EMAILS.md](docs/EMAILS.md#email-classé-en-spam)
+- [ ] **Trancher** : un chef rattaché à deux unités qui demande un changement (aujourd'hui, l'unité principale est remplacée) ; plusieurs périodes ouvertes en même temps (aujourd'hui, une nouvelle dépense va dans la plus récente)
+- [ ] **Rédiger les textes RGPD** « Qui y a accès » et « Tes droits » → `src/components/legal/LegalModal.tsx`, [section 8](#8-réglementation-et-rgpd)
+- [ ] **Refaire les captures d'écran** (Marty dans l'en-tête, confirmation de remboursement, tri des comptes, total sous les filtres) → `scripts/capture-all-screenshots.ts`, [section 2](#2-parcours-en-images)
+- [ ] **Passage en production** : dérouler la checklist complète → [docs/AVANT-PROD.md](docs/AVANT-PROD.md)
+
 ## Sommaire
+
+- [À faire](#à-faire)
 
 1. [En bref](#1-en-bref)
 2. [Parcours en images](#2-parcours-en-images)
