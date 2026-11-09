@@ -1,12 +1,13 @@
 // Service Worker pour l'application PWA Compta Groupe Saint-Martin
-const CACHE_NAME = 'saint-martin-compta-shell-v4';
+const CACHE_NAME = 'saint-martin-compta-shell-v5';
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL = [
   '/',
   '/index.html',
   OFFLINE_URL,
   '/manifest.json',
-  '/favicon.svg',
+  '/favicon.png',
+  '/favicon.ico',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
