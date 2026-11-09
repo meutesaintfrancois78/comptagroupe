@@ -116,10 +116,16 @@ bun run clean:sandbox
 
 ---
 
-## ID test
+## 🔑 6. Comptes de Test & Identifiants
 
- Les 4 comptes de test (mot de passe universel : Password123!) :
-      • benoit.dupont@groupe-enf.fr : Administrateur / Chef de groupe
-      • marie.vasseur@groupe-enf.fr : Administratrice / Trésorière
-      • guillaume.martin@groupe-enf.fr : Chef actif (Meute 1 & 3)
-      • claire.lemoine@groupe-enf.fr : Chef en attente d'approbation
+> [!NOTE]
+> **Mot de passe universel** pour tous les comptes : `Password123!`
+
+| Utilisateur | Email | Rôle & Rattachement | Statut |
+| :--- | :--- | :--- | :--- |
+| **Benoît Dupont** | `benoit.dupont@groupe-enf.fr` | Administrateur (Chef de groupe) | Actif |
+| **Marie Vasseur** | `marie.vasseur@groupe-enf.fr` | Administratrice (Trésorière) | Actif |
+| **Guillaume Martin** | `guillaume.martin@groupe-enf.fr` | Chef d'unité (Meute 1 & Meute 3) | Actif |
+| **Claire Lemoine** | `claire.lemoine@groupe-enf.fr` | Chef d'unité (Compagnie 2) | En attente de validation |
+| **Test Direct** | `chef.martin@gmail.com` | Chef d'unité (Meute 1) | Actif (mot de passe : `SuperSecretPassword123!`) |
+
