@@ -46,7 +46,7 @@ export const AdminExportModal: React.FC<AdminExportModalProps> = ({
 
     const csv = generateCsvContent(expenses, activeKeys);
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadCsv(`Export_Compta_ENF_${periodName.replace(/\s+/g, '_')}_${dateStr}.csv`, csv);
+    downloadCsv(`Export_Compta_Saint_Martin_${periodName.replace(/\s+/g, '_')}_${dateStr}.csv`, csv);
     onClose();
   };
 

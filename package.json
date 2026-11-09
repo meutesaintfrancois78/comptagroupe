@@ -1,5 +1,5 @@
 {
-  "name": "compta-scout-enf",
+  "name": "compta-groupe-saint-martin",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -31,6 +31,7 @@
     "autoprefixer": "^10.4.20",
     "happy-dom": "^17.1.8",
     "postcss": "^8.5.3",
+    "puppeteer-core": "^25.16.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",
     "vite": "^6.2.0"

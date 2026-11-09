@@ -1,5 +1,5 @@
 export const DISMISS_DURATION_MS = 3 * 60 * 1000; // 3 minutes = 180 000 ms
-export const BANNER_STORAGE_KEY = 'enf_admin_dismiss_until';
+export const BANNER_STORAGE_KEY = 'saint_martin_admin_dismiss_until';
 
 export function shouldShowAdminBanner(
   pendingCount: number,

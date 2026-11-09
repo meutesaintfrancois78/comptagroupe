@@ -34,10 +34,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div>
             <h1 className="text-base font-bold leading-tight tracking-tight text-foreground sm:text-lg">
-              Compta ENF
+              Compta Saint-Martin
             </h1>
             <p className="text-xs text-muted-foreground hidden sm:block">
-              Éclaireurs Neutres de France
+              Groupe Saint-Martin
             </p>
           </div>
         </div>

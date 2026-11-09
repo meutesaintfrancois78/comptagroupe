@@ -14,6 +14,7 @@ import { LegalModal } from '@/components/legal/LegalModal';
 import { AdminSandboxTest } from '@/pages/AdminSandboxTest';
 import { Button } from '@/components/ui/button';
 import { MartyMascot } from '@/components/shared/MartyMascot';
+import { PWAInstallBanner } from '@/components/shared/PWAInstallBanner';
 import { TestTube2 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -100,7 +101,7 @@ export const App: React.FC = () => {
   if (isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <MartyMascot expression="hello" size="md" subtitle="Chargement de Compta ENF..." />
+        <MartyMascot expression="hello" size="md" subtitle="Chargement de Compta Groupe Saint-Martin..." />
       </div>
     );
   }
@@ -247,7 +248,7 @@ export const App: React.FC = () => {
       {/* Pied de page */}
       <footer className="border-t py-4 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between container mx-auto px-4 gap-2">
         <div>
-          Compta Éclaireurs Neutres de France (ENF) • Conservation 10 ans
+          Compta Groupe Saint-Martin • Conservation légale 10 ans
         </div>
         <div className="flex items-center space-x-3">
           {profile.role === 'admin' && isSandboxEnabled && (
@@ -267,6 +268,9 @@ export const App: React.FC = () => {
           </button>
         </div>
       </footer>
+
+      {/* Bannière d'installation PWA mobile */}
+      <PWAInstallBanner />
 
       {/* Écran d'alerte hors-connexion */}
       {!isOnline && <OfflineScreen />}

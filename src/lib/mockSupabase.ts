@@ -1,6 +1,6 @@
 import { Profile, Unit, Period, ExpenseCategory, Expense, ExpenseHistory } from '@/types/database';
 
-const STORAGE_KEY = 'enf_compta_mock_db_v2';
+const STORAGE_KEY = 'saint_martin_compta_mock_db_v2';
 
 interface MockDB {
   units: Unit[];
@@ -265,7 +265,7 @@ export class MockSupabaseClient {
       getSession: async () => {
         return {
           data: {
-            session: this.db.currentUser ? { user: { id: this.db.currentUser.id, email: `${this.db.currentUser.first_name.toLowerCase()}@enf.local` } } : null,
+            session: this.db.currentUser ? { user: { id: this.db.currentUser.id, email: `${this.db.currentUser.first_name.toLowerCase()}@saint-martin.local` } } : null,
           },
           error: null,
         };
@@ -273,7 +273,7 @@ export class MockSupabaseClient {
       getUser: async () => {
         return {
           data: {
-            user: this.db.currentUser ? { id: this.db.currentUser.id, email: `${this.db.currentUser.first_name.toLowerCase()}@enf.local` } : null,
+            user: this.db.currentUser ? { id: this.db.currentUser.id, email: `${this.db.currentUser.first_name.toLowerCase()}@saint-martin.local` } : null,
           },
           error: null,
         };

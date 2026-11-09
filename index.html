@@ -7,15 +7,16 @@
     <meta name="theme-color" content="#1b4332" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Compta ENF" />
+    <meta name="apple-mobile-web-app-title" content="Compta Saint-Martin" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <title>Compta Éclaireurs Neutres de France</title>
+    <title>Compta Groupe Saint-Martin</title>
   </head>
   <body class="min-h-screen bg-background text-foreground antialiased selection:bg-scout-500 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {});
         });

@@ -13,6 +13,7 @@ import { Profile, Unit, UserRole, AccountStatus } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
+import { validateProfileUnitAssignment } from '@/lib/permissions';
 
 interface AdminUserManagementProps {
   profiles: Profile[];
@@ -96,14 +97,21 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
   const handleUpdateUnits = async (
     profileId: string,
-    primaryUnitId: string,
+    primaryUnitId: string | null,
     secondaryUnitId: string | null
   ) => {
     setErrorMsg(null);
+    const targetUser = profiles.find((p) => p.id === profileId);
+    const validation = validateProfileUnitAssignment(targetUser?.role || 'chef', primaryUnitId);
+    if (!validation.isValid) {
+      setErrorMsg(validation.error || "Unité principale obligatoire pour les chefs.");
+      return;
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({
-        primary_unit_id: primaryUnitId,
+        primary_unit_id: validation.unitId,
         secondary_unit_id: secondaryUnitId || null,
       })
       .eq('id', profileId);
@@ -149,7 +157,8 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
       <div className="bg-card rounded-2xl border shadow-sm divide-y">
         {profiles.map((p) => {
           const primaryUnitName =
-            units.find((u) => u.id === p.primary_unit_id)?.name || 'Non rattaché';
+            units.find((u) => u.id === p.primary_unit_id)?.name ||
+            (p.role === 'admin' ? 'Non rattaché (Groupe)' : 'Non rattaché');
           const secondaryUnitName = p.secondary_unit_id
             ? units.find((u) => u.id === p.secondary_unit_id)?.name
             : null;
@@ -306,13 +315,16 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-muted-foreground mb-1">
-                Unité principale (obligatoire)
+                Unité principale {selectedUser.role === 'admin' ? '(facultative pour un administrateur)' : '(obligatoire)'}
               </label>
               <select
                 id="edit-primary-unit"
-                defaultValue={selectedUser.primary_unit_id || units[0]?.id}
+                defaultValue={selectedUser.primary_unit_id || ''}
                 className="h-10 w-full text-xs font-medium rounded-lg border border-input bg-background px-3 py-1"
               >
+                {selectedUser.role === 'admin' && (
+                  <option value="">Aucune unité (Non rattaché - Groupe)</option>
+                )}
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}

@@ -2,15 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Expense, ExpenseCategory, PaymentMethod } from '@/types/database';
+import { Expense, ExpenseCategory, PaymentMethod, Unit } from '@/types/database';
 import { parseAmount } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { buildExpenseUpdatePayload } from '@/lib/permissions';
 
 interface ExpenseEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   expense: Expense | null;
   categories: ExpenseCategory[];
+  units?: Unit[];
+  isAdmin?: boolean;
   onUpdated: () => void;
 }
 
@@ -19,6 +22,8 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
   onClose,
   expense,
   categories,
+  units = [],
+  isAdmin = false,
   onUpdated,
 }) => {
   const [amount, setAmount] = useState<string>('');
@@ -26,6 +31,7 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
   const [categoryId, setCategoryId] = useState<string>('');
   const [customCategory, setCustomCategory] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('unit_money');
+  const [unitId, setUnitId] = useState<string>('');
   const [comment, setComment] = useState<string>('');
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -38,6 +44,7 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
       setCategoryId(expense.category_id || categories[0]?.id || '');
       setCustomCategory(expense.custom_category || '');
       setPaymentMethod(expense.payment_method);
+      setUnitId(expense.unit_id || '');
       setComment(expense.comment || '');
       setErrorMsg(null);
     }
@@ -60,29 +67,32 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
       return;
     }
 
-    setIsLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const updates: any = {
+    const payloadResult = buildExpenseUpdatePayload(
+      expense,
+      {
         amount: parsed,
         date,
         category_id: categoryId,
         custom_category: isAutre ? customCategory.trim() : null,
         payment_method: paymentMethod,
         comment: comment.trim() || null,
-      };
+        unit_id: unitId,
+      },
+      isAdmin ? 'admin' : 'chef'
+    );
 
-      // Si passage en personal_money et ancien statut était not_applicable
-      if (paymentMethod === 'personal_money' && expense.reimbursement_status === 'not_applicable') {
-        updates.reimbursement_status = 'pending';
-      } else if (paymentMethod === 'unit_money') {
-        updates.reimbursement_status = 'not_applicable';
-      }
+    if (!payloadResult.allowed) {
+      setErrorMsg(payloadResult.error || "Action non autorisée.");
+      return;
+    }
 
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
       const { error } = await supabase
         .from('expenses')
-        .update(updates)
+        .update(payloadResult.payload)
         .eq('id', expense.id);
 
       if (error) {
@@ -136,6 +146,25 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
+
+        {isAdmin && units.length > 0 && (
+          <div>
+            <label className="block text-xs font-bold text-muted-foreground mb-1">
+              Unité rattachée (Modification Admin)
+            </label>
+            <select
+              value={unitId}
+              onChange={(e) => setUnitId(e.target.value)}
+              className="h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium"
+            >
+              {units.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-bold text-muted-foreground mb-1">

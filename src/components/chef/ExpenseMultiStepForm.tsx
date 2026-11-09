@@ -30,8 +30,8 @@ interface ExpenseMultiStepFormProps {
   onCancel: () => void;
 }
 
-const DRAFT_STORAGE_KEY = 'enf_expense_draft';
-const LAST_MOTIF_KEY = 'enf_last_motif';
+const DRAFT_STORAGE_KEY = 'saint_martin_expense_draft';
+const LAST_MOTIF_KEY = 'saint_martin_last_motif';
 
 export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   profile,

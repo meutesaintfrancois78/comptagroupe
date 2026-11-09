@@ -43,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const meta = authUser.user_metadata || {};
       const emailPrefix = authUser.email ? authUser.email.split('@')[0] : 'Chef';
       const firstName = meta.first_name || emailPrefix;
-      const lastName = meta.last_name || 'ENF';
+      const lastName = meta.last_name || 'Saint-Martin';
       const unitId = meta.primary_unit_id || defaultUnitId;
       const isAdminEmail = authUser.email?.includes('admin') || authUser.email?.includes('dupont');
       const role = meta.role === 'admin' || isAdminEmail ? 'admin' : 'chef';
@@ -219,19 +219,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchMockUser = (roleOrId: string) => {
     if (roleOrId === 'admin') {
-      signIn('benoit@enf.local');
+      signIn('benoit@saint-martin.local');
     } else if (roleOrId === 'admin2') {
-      signIn('marie@enf.local');
+      signIn('marie@saint-martin.local');
     } else if (roleOrId === 'chef' || roleOrId === 'chef1') {
-      signIn('guillaume@enf.local');
+      signIn('guillaume@saint-martin.local');
     } else if (roleOrId === 'chef2') {
-      signIn('thomas@enf.local');
+      signIn('thomas@saint-martin.local');
     } else if (roleOrId === 'chef3') {
-      signIn('sophie@enf.local');
+      signIn('sophie@saint-martin.local');
     } else if (roleOrId === 'pending') {
-      signIn('claire@enf.local');
+      signIn('claire@saint-martin.local');
     } else if (roleOrId === 'deactivated') {
-      signIn('julien@enf.local');
+      signIn('julien@saint-martin.local');
     } else {
       signIn(roleOrId);
     }

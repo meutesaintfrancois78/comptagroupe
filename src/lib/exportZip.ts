@@ -4,7 +4,7 @@ import { normalizeReceiptFileName } from './exportCsv';
 
 export async function generateAndDownloadReceiptsZip(
   expenses: Expense[],
-  archiveName: string = 'Justificatifs_Compta_ENF.zip'
+  archiveName: string = 'Justificatifs_Compta_Groupe_Saint_Martin.zip'
 ): Promise<void> {
   const zip = new JSZip();
 

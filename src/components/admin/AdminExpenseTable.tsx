@@ -403,6 +403,8 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
         onClose={() => setSelectedForEdit(null)}
         expense={selectedForEdit}
         categories={categories}
+        units={units}
+        isAdmin={true}
         onUpdated={onRefresh}
       />
 

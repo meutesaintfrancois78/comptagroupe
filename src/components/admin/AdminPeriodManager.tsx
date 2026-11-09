@@ -145,7 +145,7 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
         </h3>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
           Une période clôturée passe en <strong>lecture seule réservée aux administrateurs</strong> et disparaît de la vue des chefs.
-          Conformément au Code de commerce et aux règles associatives ENF, les pièces et dépenses sont conservées pendant 10 ans. La purge n'est à utiliser qu'en cas exceptionnel et déclenche automatiquement un téléchargement de sauvegarde.
+          Conformément au Code de commerce et aux règles associatives du Groupe Saint-Martin, les pièces et dépenses sont conservées pendant 10 ans. La purge n'est à utiliser qu'en cas exceptionnel et déclenche automatiquement un téléchargement de sauvegarde.
         </p>
       </div>
 

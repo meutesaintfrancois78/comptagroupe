@@ -20,7 +20,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={tab === 'cgu' ? "Conditions Générales d'Utilisation" : "Politique de Confidentialité & RGPD"}
-      description="Groupe scout Éclaireurs Neutres de France (ENF)"
+      description="Groupe scout Saint-Martin"
       className="max-w-2xl"
     >
       <div className="flex border-b mb-4">
@@ -52,7 +52,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
             <section>
               <h4 className="font-bold text-base text-foreground mb-1">1. Objet du service</h4>
               <p>
-                Cette application est mise à disposition des chefs d'unité et responsables du groupe scout affilié aux <strong>Éclaireurs Neutres de France (ENF)</strong>. Elle permet la remontée dématérialisée des dépenses engagées pour les activités scoutes (sorties, week-ends, camps) avec leurs justificatifs obligatoires, ainsi que le suivi des remboursements.
+                Cette application est mise à disposition des chefs d'unité et responsables du <strong>Groupe Saint-Martin</strong>. Elle permet la remontée dématérialisée des dépenses engagées pour les activités scoutes (sorties, week-ends, camps) avec leurs justificatifs obligatoires, ainsi que le suivi des remboursements.
               </p>
             </section>
 
@@ -82,7 +82,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
             <section>
               <h4 className="font-bold text-base text-foreground mb-1">1. Finalité du traitement</h4>
               <p>
-                Les données sont collectées exclusivement dans le cadre de la gestion associative, de l'organisation des camps et du remboursement des frais engagés par les chefs bénévoles au bénéfice des jeunes des unités ENF.
+                Les données sont collectées exclusivement dans le cadre de la gestion associative, de l'organisation des camps et du remboursement des frais engagés par les chefs bénévoles au bénéfice des jeunes des unités du Groupe Saint-Martin.
               </p>
             </section>
 

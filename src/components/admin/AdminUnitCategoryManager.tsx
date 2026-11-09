@@ -57,7 +57,7 @@ export const AdminUnitCategoryManager: React.FC<AdminUnitCategoryManagerProps> =
         <div>
           <h3 className="text-lg font-bold text-foreground">Unités scoutes</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Unités actives dans le groupe ENF
+            Unités actives dans le Groupe Saint-Martin
           </p>
         </div>
 

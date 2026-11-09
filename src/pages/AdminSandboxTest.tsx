@@ -162,7 +162,7 @@ export const AdminSandboxTest: React.FC<AdminSandboxTestProps> = ({
 
   // 4. Test d'envoi d'email
   const handleTestEmail = () => {
-    setStatusMsg('Test email : simulation de la notification SMTP associatif vers chef@groupe-enf.fr (Succès).');
+    setStatusMsg('Test email : simulation de la notification SMTP associatif vers chef@groupe-saint-martin.fr (Succès).');
   };
 
   return (
@@ -272,7 +272,7 @@ export const AdminSandboxTest: React.FC<AdminSandboxTestProps> = ({
               <span>Réinitialiser les données</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              Remet à zéro la base de données de test locale (efface les ajouts et recharge le seed ENF).
+              Remet à zéro la base de données de test locale (efface les ajouts et recharge le seed Saint-Martin).
             </CardDescription>
           </CardHeader>
           <CardContent>

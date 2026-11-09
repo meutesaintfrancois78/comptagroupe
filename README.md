@@ -1,8 +1,8 @@
-# Compta ENF - Remontée de Dépenses Scoutes
+# Compta Groupe Saint-Martin - Remontée de Dépenses Scoutes
 
-Application mobile-first Progressive Web App (PWA) de remontée et de suivi de dépenses pour les chefs d'unité d'un groupe scout affilié aux **Éclaireurs Neutres de France (ENF)**.
+Application mobile-first Progressive Web App (PWA) de remontée et de suivi de dépenses pour les chefs d'unité du **Groupe Saint-Martin**.
 
-Développée selon une architecture **Zero-Backend (sans serveur Node.js)**, déployable gratuitement sur **Vercel** et s'appuyant sur l'infrastructure **Supabase** (PostgreSQL avec Row Level Security, Authentification et Storage privé).
+Développée selon une architecture **Zero-Backend (sans serveur Node.js)**, déployable sur **Vercel** et s'appuyant sur l'infrastructure **Supabase** (PostgreSQL avec Row Level Security, Authentification et Storage privé).
 
 ---
 
@@ -21,7 +21,7 @@ Développée selon une architecture **Zero-Backend (sans serveur Node.js)**, dé
   5. *Justificatif obligatoire* : Prise de photo directe avec compression automatique dans le navigateur (~1 Mo) ou sélection de fichier PDF (jusqu'à 5 Mo).
   6. *Récapitulatif & Validation* : Date modifiable, commentaire facultatif, bouton anti-doublon désactivé au premier clic.
 - **Mode hors-connexion sécurisé** : Enregistrement continu en mémoire locale (`localStorage`). En l'absence de réseau, un écran explicatif avec Marty bloque l'envoi sans rien perdre.
-- **Consultation collaborative d'unité** : Le chef voit et peut modifier toutes les dépenses de son unité, avec historique d'audit complet (*qui, quand, ancienne valeur*). **Suppression strictement interdite** pour les chefs.
+- **Consultation collaborative d'unité** : Le chef voit et peut modifier les dépenses de son unité, avec historique d'audit complet (*qui, quand, ancienne valeur*). **Suppression strictement interdite** pour les chefs, et l'unité de la dépense reste verrouillée.
 
 ### Parcours Administrateur (Chefs de groupe & Trésoriers)
 - **Bannière plein écran obligatoire** : S'impose automatiquement tant qu'il reste des comptes chefs en attente. Clic sur "Plus tard" repousse le rappel avec un minuteur persistant de **3 minutes**.
@@ -29,8 +29,9 @@ Développée selon une architecture **Zero-Backend (sans serveur Node.js)**, dé
   - Colonnes Date, Unité, Chef, Montant, Motif, Mode de paiement, Statut remboursement, Vignette du justificatif.
   - Filtres dynamiques combinables par unité, chef et statut de remboursement.
   - Ligne de totalisation en bas de tableau recalculée instantanément.
+- **Modification d'unité par les admins** : Lors de l'édition d'une dépense, un administrateur a le droit exclusif de modifier l'unité de rattachement (`unit_id`).
+- **Gestion des comptes & affectation d'unité flexible** : Validation, refus, désactivation de chef parti, affectation d'une 2e unité (débloquant le sélecteur d'unité), promotion admin avec **garde-fou interdisant le retrait du dernier admin**. Les administrateurs peuvent n'avoir **aucune unité principale** (*Non rattaché - Groupe*).
 - **Remboursements** : Passage en un clic en "Remboursée" pour les dépenses engagées sur fonds personnels (avec notification email au chef).
-- **Gestion des comptes & unités** : Validation, refus, désactivation de chef parti, affectation d'une 2e unité (débloquant le sélecteur d'unité), promotion admin avec **garde-fou interdisant le retrait du dernier admin**.
 - **Périodes, Clôture & Règle des 10 ans** :
   - Période unique active (Année ou Camp).
   - Clôture verrouillant la période en lecture seule pour les admins et la masquant pour les chefs.
@@ -41,91 +42,72 @@ Développée selon une architecture **Zero-Backend (sans serveur Node.js)**, dé
   - Export ZIP de l'ensemble des justificatifs renommés selon la nomenclature : `AAAA-MM-JJ_[Unite]_[Montant]EUR.[extension]`.
 
 ### Mascotte : Marty le bison
-Personnage kawaii original (corps tout rond, yeux brillants, foulard scout vert ENF et carnet de comptes sous le bras) décliné en images WebP légères pour les 6 états émotionnels (accueil, attente, encouragements, joie, hors-ligne, erreur). Marty n'apparaît côté admin que sur l'écran de login pour préserver le sérieux de l'espace comptable.
+Personnage kawaii original (corps tout rond, yeux brillants, foulard scout vert et carnet de comptes sous le bras) décliné en images WebP légères pour les 6 états émotionnels (accueil, attente, encouragements, joie, hors-ligne, erreur). Marty n'apparaît côté admin que sur l'écran de login pour préserver le sérieux de l'espace comptable.
 
 ---
 
-## 🛠️ 2. Stack Technique (Zero-Server)
+## 📱 2. PWA (Progressive Web App) Mobile & Hors-Ligne
 
-- **Frontend & PWA** : React 18, Vite, TypeScript, Tailwind CSS, composants inspirés shadcn/ui (Radix UI).
-- **Outillage & Tests** : **Bun** (remplace entièrement Node.js en local et exécute les tests TDD natifs `bun test` en moins de 30 ms).
-- **Base de données & Auth** : Supabase (PostgreSQL 15, RLS strictes, Auth email/mot de passe, Storage bucket privé).
-- **Hébergement** : Vercel (déploiement statique Edge 100% gratuit, 0 serveur à administrer).
+- **Installation sur écran d'accueil** : Compatible Android (prompt natif automatique) et iOS Safari (guidage « Partager ➔ Sur l'écran d'accueil »).
+- **Icônes adaptatives** : Icônes PNG générées en 192x192, 512x512, maskable et apple-touch-icon 180x180 dans `public/icons/`.
+- **Mise en cache App Shell** : Service worker (`public/sw.js`) assurant un chargement instantané même sans connexion internet.
 
 ---
 
-## 🚀 3. Installation et Démarrage Local
+## 🔑 3. Comptes de Test Réels (Supabase en Ligne)
 
-### Prérequis
-- [Bun](https://bun.sh) installé en local (`curl -fsSL https://bun.sh/install | bash`).
+L'application est déployée en ligne sur : **[https://comptagroupe.vercel.app](https://comptagroupe.vercel.app)**
 
-### Lancement
+Tous ces comptes sont créés et vérifiés sur le projet Supabase en production :
+
+| Rôle | Nom & Prénom | Identifiant (Email) | Mot de passe | Unité de rattachement | Statut |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Administrateur** | Benoît Dupont | `ben.dupont@groupe-enf.fr` | `Password123!` | *Aucune (Non rattaché - Groupe)* | **Actif** |
+| **Administrateur** | Benoît Dupont | `admin.dupont@groupe-enf.fr` | `Password123!` | Troupe 1 | **Actif** |
+| **Administratrice** | Marie Vasseur | `marie.admin@groupe-enf.fr` | `Password123!` | Meute 3 | **Actif** |
+| **Chef d'Unité** | Alexandre Martin | `chef.martin@gmail.com` | `SuperSecretPassword123!` | Meute 1 | **Actif** |
+| **Chef d'Unité** | Guillaume Martin | `chef.guillaume@groupe-enf.fr` | `Password123!` | Meute 1 & Meute 3 (2 unités) | **Actif** |
+| **Chef en Attente** | Claire Lemoine | `chef.claire@groupe-enf.fr` | `Password123!` | Compagnie 2 | **En attente** |
+| **Chef Désactivé** | Julien Faure | `chef.julien@groupe-enf.fr` | `Password123!` | Clairière 2 | **Désactivé** |
+
+> [!TIP]
+> Sur l'écran de connexion, une icône œil (`Eye` / `EyeOff`) permet de révéler ou masquer le mot de passe en cours de saisie.
+
+---
+
+## 🛠️ 4. Stack Technique & Méthodologie TDD
+
+- **Frontend & PWA** : React 18, Vite, TypeScript, Tailwind CSS, composants accessibles (Radix UI / Lucide Icons).
+- **TDD (Test-Driven Development)** : Développement conduit par les tests avec **Bun** (`bun test`).
+  - 24 tests unitaires couvrant la validation des formulaires, le calcul des permissions d'édition, les règles d'affectation d'unité, la temporisation de la bannière 3 minutes, la protection du dernier administrateur et les exports CSV/ZIP.
+- **Base de données & Auth** : Supabase (PostgreSQL 15, Row Level Security, GoTrue Auth, Storage bucket privé).
+- **Hébergement** : Vercel (Edge static delivery).
+
+---
+
+## 🚀 5. Commandes Utiles
+
 ```bash
-# 1. Cloner le projet et installer les dépendances
+# Installation des dépendances
 bun install
 
-# 2. Lancer les tests unitaires TDD
+# Lancer la suite de tests TDD (24 tests)
 bun test
 
-# 3. Lancer le serveur de développement
+# Lancer le serveur de développement local
 bun dev
-```
 
-L'application démarre par défaut en **mode démo autonome** : une base de données locale simulée en `localStorage` vous permet de tester immédiatement tous les écrans sans avoir besoin de configurer Supabase à l'avance.
+# Compiler pour la production
+bun run build
 
-Des boutons d'accès rapide en bas de l'écran de connexion permettent de basculer en un clic entre :
-- 👤 **Admin** (Benoît Dupont)
-- 🏕️ **Chef d'unité** (Guillaume Martin)
-- ⏳ **Chef en attente** (Claire Lemoine)
-
----
-
-## ☁️ 4. Déploiement en Production
-
-### 1. Configuration Supabase
-1. Créez un projet gratuit sur [supabase.com](https://supabase.com).
-2. Dans le menu **SQL Editor**, exécutez successivement les fichiers SQL du dossier `supabase/` :
-   - `supabase/migrations/20261108000000_schema.sql` (Tables et types)
-   - `supabase/migrations/20261108000001_rls.sql` (Politiques de sécurité RLS)
-   - `supabase/migrations/20261108000002_triggers.sql` (Triggers d'audit et dernier admin)
-   - `supabase/seed.sql` (Les 6 unités ENF, les catégories et la première période)
-3. Créez un bucket de stockage nommé `receipts` dans **Storage** et réglez-le en **Private**.
-
-### 2. Déploiement Vercel
-1. Poussez le dépôt sur votre compte GitHub d'association.
-2. Liez le dépôt sur [vercel.com](https://vercel.com).
-3. Ajoutez les variables d'environnement dans les paramètres Vercel :
-   - `VITE_SUPABASE_URL` = `https://votre-projet.supabase.co`
-   - `VITE_SUPABASE_ANON_KEY` = `votre-cle-anon`
-   - `VITE_ENABLE_SANDBOX` = `false`
-
-### 3. Suppression de la page de test avant passage en production
-Conformément au cahier des charges, la page de test secrète `/admin/test-sandbox-secrete` peut être physiquement supprimée en une seule commande avant la livraison finale :
-```bash
-bun run clean:sandbox
+# Générer les captures d'écran des parcours utilisateurs avec Chromium Headless
+bun run scripts/capture-all-screenshots.ts
 ```
 
 ---
 
-## ⚖️ 5. Légal, RGPD et Règle des 10 ans
+## ⚖️ 6. Légal, RGPD & Règle des 10 ans
 
 - **Durée de conservation** : 10 ans pour les pièces comptables (Article L123-22 du Code de commerce).
 - **Protection des données** : Accès cloisonné par unité via RLS. Les justificatifs ne sont jamais publics et sont consultés via des URLs signées éphémères.
 - **Protection des mineurs** : Consigne explicite de ne renseigner aucune donnée nominative ou de santé relative aux enfants dans les commentaires libres.
-
-
----
-
-## 🔑 6. Comptes de Test & Identifiants
-
-> [!NOTE]
-> **Mot de passe universel** pour tous les comptes : `Password123!`
-
-| Utilisateur | Email | Rôle & Rattachement | Statut |
-| :--- | :--- | :--- | :--- |
-| **Benoît Dupont** | `benoit.dupont@groupe-enf.fr` | Administrateur (Chef de groupe) | Actif |
-| **Marie Vasseur** | `marie.vasseur@groupe-enf.fr` | Administratrice (Trésorière) | Actif |
-| **Guillaume Martin** | `guillaume.martin@groupe-enf.fr` | Chef d'unité (Meute 1 & Meute 3) | Actif |
-| **Claire Lemoine** | `claire.lemoine@groupe-enf.fr` | Chef d'unité (Compagnie 2) | En attente de validation |
-| **Test Direct** | `chef.martin@gmail.com` | Chef d'unité (Meute 1) | Actif (mot de passe : `SuperSecretPassword123!`) |
-

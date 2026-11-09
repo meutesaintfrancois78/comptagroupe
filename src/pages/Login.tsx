@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogIn, UserPlus, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { LogIn, UserPlus, KeyRound, ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import { MartyMascot } from '@/components/shared/MartyMascot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ export const Login: React.FC = () => {
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [primaryUnitId, setPrimaryUnitId] = useState('');
@@ -117,7 +118,7 @@ export const Login: React.FC = () => {
         <MartyMascot
           expression="hello"
           size="md"
-          title="Bienvenue sur Compta ENF !"
+          title="Bienvenue sur Compta Saint-Martin !"
           subtitle="La remontée de dépenses simple et rapide pour les chefs d'unité"
         />
 
@@ -158,7 +159,7 @@ export const Login: React.FC = () => {
                   <Input
                     type="email"
                     required
-                    placeholder="chef@groupe-enf.fr"
+                    placeholder="chef@groupe-saint-martin.fr"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -177,13 +178,24 @@ export const Login: React.FC = () => {
                       Oublié ?
                     </button>
                   </div>
-                  <Input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 transition-colors"
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <Button
@@ -280,13 +292,24 @@ export const Login: React.FC = () => {
                   <label className="block text-xs font-semibold text-muted-foreground mb-1">
                     Mot de passe
                   </label>
-                  <Input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 transition-colors"
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex items-start space-x-2 pt-1">
@@ -341,7 +364,7 @@ export const Login: React.FC = () => {
                   <Input
                     type="email"
                     required
-                    placeholder="chef@groupe-enf.fr"
+                    placeholder="chef@groupe-saint-martin.fr"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />

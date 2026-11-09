@@ -1,22 +1,33 @@
 {
-  "short_name": "Compta ENF",
-  "name": "Compta Éclaireurs Neutres de France",
-  "description": "Application de remontée de dépenses pour les chefs d'unité ENF",
+  "id": "/",
+  "short_name": "Compta Saint-Martin",
+  "name": "Compta Groupe Saint-Martin",
+  "description": "Application mobile de gestion et de remontée de dépenses pour les chefs d'unité du Groupe Saint-Martin",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1b4332",
+  "theme_color": "#1b4332",
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
   ],
-  "start_url": "/",
-  "background_color": "#1b4332",
-  "theme_color": "#1b4332",
-  "display": "standalone",
-  "orientation": "portrait"
+  "categories": ["finance", "productivity", "utilities"]
 }
