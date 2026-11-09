@@ -652,6 +652,5 @@ CREATE TRIGGER on_auth_user_created
 -- Auto-confirm emails to prevent blocking
 UPDATE auth.users
 SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
-    confirmed_at = COALESCE(confirmed_at, now()),
     last_sign_in_at = COALESCE(last_sign_in_at, now())
 WHERE email_confirmed_at IS NULL;
