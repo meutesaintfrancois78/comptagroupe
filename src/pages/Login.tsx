@@ -365,34 +365,81 @@ export const Login: React.FC = () => {
 
         {/* Boutons de test rapide en mode démo / mock */}
         {isMock && (
-          <div className="mt-6 p-4 rounded-2xl border bg-card/60 backdrop-blur text-center space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              ⚡ Accès rapide Démo / Test
+          <div className="mt-6 p-4 rounded-3xl border bg-card/60 backdrop-blur text-center space-y-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+              ⚡ Accès rapide Utilisateurs de Test
             </span>
-            <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-left">
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
+                className="text-xs justify-start h-auto py-2 bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
                 onClick={() => switchMockUser?.('admin')}
               >
-                👤 Admin
+                <div>
+                  <div className="font-bold">👤 Benoît (Admin)</div>
+                  <div className="text-[10px] opacity-75">Chef de groupe</div>
+                </div>
               </Button>
+
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs bg-blue-500/10 border-blue-500/20 text-blue-800 dark:text-blue-300"
-                onClick={() => switchMockUser?.('chef')}
+                className="text-xs justify-start h-auto py-2 bg-emerald-500/10 border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
+                onClick={() => switchMockUser?.('admin2')}
               >
-                🏕️ Chef
+                <div>
+                  <div className="font-bold">💼 Marie (Admin)</div>
+                  <div className="text-[10px] opacity-75">Trésorière</div>
+                </div>
               </Button>
+
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-300"
+                className="text-xs justify-start h-auto py-2 bg-blue-500/10 border-blue-500/20 text-blue-800 dark:text-blue-300"
+                onClick={() => switchMockUser?.('chef1')}
+              >
+                <div>
+                  <div className="font-bold">🐺 Guillaume</div>
+                  <div className="text-[10px] opacity-75">Meute 1 & 3</div>
+                </div>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs justify-start h-auto py-2 bg-blue-500/10 border-blue-500/20 text-blue-800 dark:text-blue-300"
+                onClick={() => switchMockUser?.('chef2')}
+              >
+                <div>
+                  <div className="font-bold">🏕️ Thomas</div>
+                  <div className="text-[10px] opacity-75">Troupe 1</div>
+                </div>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs justify-start h-auto py-2 bg-purple-500/10 border-purple-500/20 text-purple-800 dark:text-purple-300"
+                onClick={() => switchMockUser?.('chef3')}
+              >
+                <div>
+                  <div className="font-bold">🌿 Sophie</div>
+                  <div className="text-[10px] opacity-75">Clairière 2</div>
+                </div>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs justify-start h-auto py-2 bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-300"
                 onClick={() => switchMockUser?.('pending')}
               >
-                ⏳ En attente
+                <div>
+                  <div className="font-bold">⏳ Claire</div>
+                  <div className="text-[10px] opacity-75">En attente (Cie 2)</div>
+                </div>
               </Button>
             </div>
           </div>

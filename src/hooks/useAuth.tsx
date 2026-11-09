@@ -138,10 +138,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchMockUser = (roleOrId: string) => {
     if (roleOrId === 'admin') {
       signIn('benoit@enf.local');
-    } else if (roleOrId === 'chef') {
+    } else if (roleOrId === 'admin2') {
+      signIn('marie@enf.local');
+    } else if (roleOrId === 'chef' || roleOrId === 'chef1') {
       signIn('guillaume@enf.local');
+    } else if (roleOrId === 'chef2') {
+      signIn('thomas@enf.local');
+    } else if (roleOrId === 'chef3') {
+      signIn('sophie@enf.local');
     } else if (roleOrId === 'pending') {
       signIn('claire@enf.local');
+    } else if (roleOrId === 'deactivated') {
+      signIn('julien@enf.local');
+    } else {
+      signIn(roleOrId);
     }
   };
 

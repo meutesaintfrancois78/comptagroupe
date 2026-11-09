@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "bun test",
+    "generate:receipts": "python3 scripts/generate-receipts.py",
+    "upload:receipts": "bun run scripts/upload-receipts-to-supabase.ts",
     "clean:sandbox": "rm -f src/pages/AdminSandboxTest.tsx"
   },
   "dependencies": {

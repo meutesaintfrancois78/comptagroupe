@@ -1,6 +1,6 @@
 import { Profile, Unit, Period, ExpenseCategory, Expense, ExpenseHistory } from '@/types/database';
 
-const STORAGE_KEY = 'enf_compta_mock_db_v1';
+const STORAGE_KEY = 'enf_compta_mock_db_v2';
 
 interface MockDB {
   units: Unit[];
@@ -47,6 +47,17 @@ const DEFAULT_PROFILES: Profile[] = [
     updated_at: '2026-09-01T00:00:00Z',
   },
   {
+    id: 'user-admin-2',
+    first_name: 'Marie',
+    last_name: 'Vasseur',
+    role: 'admin',
+    status: 'active',
+    primary_unit_id: 'u3',
+    secondary_unit_id: null,
+    created_at: '2026-09-01T00:00:00Z',
+    updated_at: '2026-09-01T00:00:00Z',
+  },
+  {
     id: 'user-chef-1',
     first_name: 'Guillaume',
     last_name: 'Martin',
@@ -58,7 +69,29 @@ const DEFAULT_PROFILES: Profile[] = [
     updated_at: '2026-09-05T00:00:00Z',
   },
   {
-    id: 'user-chef-pending',
+    id: 'user-chef-2',
+    first_name: 'Thomas',
+    last_name: 'Bernard',
+    role: 'chef',
+    status: 'active',
+    primary_unit_id: 'u3',
+    secondary_unit_id: null,
+    created_at: '2026-09-10T00:00:00Z',
+    updated_at: '2026-09-10T00:00:00Z',
+  },
+  {
+    id: 'user-chef-3',
+    first_name: 'Sophie',
+    last_name: 'Legrand',
+    role: 'chef',
+    status: 'active',
+    primary_unit_id: 'u5',
+    secondary_unit_id: null,
+    created_at: '2026-09-12T00:00:00Z',
+    updated_at: '2026-09-12T00:00:00Z',
+  },
+  {
+    id: 'user-chef-pending-1',
     first_name: 'Claire',
     last_name: 'Lemoine',
     role: 'chef',
@@ -68,59 +101,115 @@ const DEFAULT_PROFILES: Profile[] = [
     created_at: '2026-11-01T00:00:00Z',
     updated_at: '2026-11-01T00:00:00Z',
   },
+  {
+    id: 'user-chef-pending-2',
+    first_name: 'Alexandre',
+    last_name: 'Petit',
+    role: 'chef',
+    status: 'pending',
+    primary_unit_id: 'u6',
+    secondary_unit_id: null,
+    created_at: '2026-11-05T00:00:00Z',
+    updated_at: '2026-11-05T00:00:00Z',
+  },
+  {
+    id: 'user-chef-deactivated',
+    first_name: 'Julien',
+    last_name: 'Moreau',
+    role: 'chef',
+    status: 'deactivated',
+    primary_unit_id: 'u2',
+    secondary_unit_id: null,
+    created_at: '2026-08-20T00:00:00Z',
+    updated_at: '2026-10-15T00:00:00Z',
+  },
 ];
 
 const DEFAULT_EXPENSES: Expense[] = [
   {
     id: 'exp-1',
     type: 'dépense',
-    date: '2026-10-14',
-    amount: 38.60,
+    date: '2026-10-12',
+    amount: 48.65,
     category_id: 'c1',
     custom_category: null,
     payment_method: 'unit_money',
-    proof_path: 'mock/receipt-1.jpg',
-    comment: 'Goûter et pain pour le week-end de rentrée',
+    proof_path: 'ticket-super-u-nourriture.jpg',
+    comment: 'Intendance week-end de rentrée (baguettes, nutella, pâtes, chocolat)',
     reimbursement_status: 'not_applicable',
     unit_id: 'u1',
     created_by: 'user-chef-1',
     period_id: 'p1',
-    created_at: '2026-10-14T15:20:00Z',
-    updated_at: '2026-10-14T15:20:00Z',
+    created_at: '2026-10-12T17:00:00Z',
+    updated_at: '2026-10-12T17:00:00Z',
   },
   {
     id: 'exp-2',
     type: 'dépense',
-    date: '2026-10-20',
-    amount: 15.20,
-    category_id: 'c5',
+    date: '2026-10-18',
+    amount: 89.90,
+    category_id: 'c3',
     custom_category: null,
-    payment_method: 'personal_money',
-    proof_path: 'mock/receipt-2.jpg',
-    comment: 'Pansements et compresses pour la trousse de secours',
-    reimbursement_status: 'pending',
-    unit_id: 'u1',
-    created_by: 'user-chef-1',
+    payment_method: 'unit_money',
+    proof_path: 'facture-leroy-materiel.jpg',
+    comment: 'Ficelle sisal 400m, bâche étanche et vis à bois pour les constructions',
+    reimbursement_status: 'not_applicable',
+    unit_id: 'u3',
+    created_by: 'user-chef-2',
     period_id: 'p1',
-    created_at: '2026-10-20T11:00:00Z',
-    updated_at: '2026-10-20T11:00:00Z',
+    created_at: '2026-10-18T12:00:00Z',
+    updated_at: '2026-10-18T12:00:00Z',
   },
   {
     id: 'exp-3',
     type: 'dépense',
-    date: '2026-10-28',
-    amount: 84.50,
-    category_id: 'c3',
+    date: '2026-10-24',
+    amount: 72.88,
+    category_id: 'c2',
     custom_category: null,
     payment_method: 'personal_money',
-    proof_path: 'mock/receipt-3.jpg',
-    comment: 'Ficelle sisal et cordes pour le grand jeu',
+    proof_path: 'ticket-station-total-carburant.jpg',
+    comment: 'Plein gazole camionnette pour transport des malles de camp',
+    reimbursement_status: 'pending',
+    unit_id: 'u5',
+    created_by: 'user-chef-3',
+    period_id: 'p1',
+    created_at: '2026-10-24T09:00:00Z',
+    updated_at: '2026-10-24T09:00:00Z',
+  },
+  {
+    id: 'exp-4',
+    type: 'dépense',
+    date: '2026-11-02',
+    amount: 31.40,
+    category_id: 'c5',
+    custom_category: null,
+    payment_method: 'personal_money',
+    proof_path: 'ticket-pharmacie-secours.jpg',
+    comment: 'Recharge trousse de secours (compresses, biseptine, pansements)',
     reimbursement_status: 'reimbursed',
     unit_id: 'u1',
     created_by: 'user-chef-1',
     period_id: 'p1',
-    created_at: '2026-10-28T18:40:00Z',
-    updated_at: '2026-10-30T10:00:00Z',
+    created_at: '2026-11-02T15:00:00Z',
+    updated_at: '2026-11-04T10:00:00Z',
+  },
+  {
+    id: 'exp-5',
+    type: 'dépense',
+    date: '2026-11-05',
+    amount: 165.00,
+    category_id: 'c4',
+    custom_category: null,
+    payment_method: 'unit_money',
+    proof_path: 'facture-camping-hebergement.jpg',
+    comment: 'Réservation emplacement camp de Toussaint Meute 1',
+    reimbursement_status: 'not_applicable',
+    unit_id: 'u1',
+    created_by: 'user-admin-1',
+    period_id: 'p1',
+    created_at: '2026-11-05T11:00:00Z',
+    updated_at: '2026-11-05T11:00:00Z',
   },
 ];
 
@@ -258,7 +347,8 @@ export class MockSupabaseClient {
           return { data: { path }, error: null };
         },
         createSignedUrl: async (path: string, _expiresIn: number) => {
-          return { data: { signedUrl: `/mock-receipts/${path}` }, error: null };
+          const filename = path.split('/').pop() || path;
+          return { data: { signedUrl: `/mock-receipts/${filename}` }, error: null };
         },
       }),
     };
@@ -405,14 +495,17 @@ export class MockSupabaseClient {
         // Handle Joins for expenses
         let result = [...filteredData];
         if (tableName === 'expenses') {
-          result = result.map((exp) => ({
-            ...exp,
-            unit: self.db.units.find((u) => u.id === exp.unit_id),
-            category: self.db.categories.find((c) => c.id === exp.category_id),
-            creator: self.db.profiles.find((p) => p.id === exp.created_by),
-            period: self.db.periods.find((p) => p.id === exp.period_id),
-            signed_proof_url: `/mock-receipts/${exp.proof_path}`,
-          }));
+          result = result.map((exp) => {
+            const filename = exp.proof_path.split('/').pop() || exp.proof_path;
+            return {
+              ...exp,
+              unit: self.db.units.find((u) => u.id === exp.unit_id),
+              category: self.db.categories.find((c) => c.id === exp.category_id),
+              creator: self.db.profiles.find((p) => p.id === exp.created_by),
+              period: self.db.periods.find((p) => p.id === exp.period_id),
+              signed_proof_url: `/mock-receipts/${filename}`,
+            };
+          });
         } else if (tableName === 'profiles') {
           result = result.map((prof) => ({
             ...prof,
