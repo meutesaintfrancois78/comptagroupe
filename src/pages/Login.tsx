@@ -48,7 +48,16 @@ export const Login: React.FC = () => {
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        setErrorMsg('Email ou mot de passe incorrect.');
+        const msg = error.message || '';
+        if (msg.includes('Email not confirmed')) {
+          setErrorMsg("Adresse email non confirmée. Désactive 'Confirm email' dans Supabase (Auth > Providers > Email) ou confirme ton email.");
+        } else if (msg.includes('rate limit')) {
+          setErrorMsg("Limite d'envoi d'emails atteinte sur Supabase. Désactive 'Confirm email' dans les réglages Supabase pour contourner.");
+        } else if (msg.includes('Invalid login credentials')) {
+          setErrorMsg('Email ou mot de passe incorrect.');
+        } else {
+          setErrorMsg(msg || 'Erreur lors de la connexion.');
+        }
       }
     } finally {
       setIsLoading(false);

@@ -66,10 +66,11 @@ CREATE POLICY "profiles_update_policy" ON public.profiles
   );
 
 -- 2. Politiques sur UNITS
--- Tout utilisateur authentifié (même en attente pour le select d'inscription) peut lire les unités actives
+-- Tout utilisateur authentifié ou anonyme (visiteur sur l'écran d'inscription) peut lire les unités actives
+DROP POLICY IF EXISTS "units_select_policy" ON public.units;
 CREATE POLICY "units_select_policy" ON public.units
   FOR SELECT
-  TO authenticated
+  TO anon, authenticated
   USING (true);
 
 -- Seuls les admins gèrent les unités
@@ -80,9 +81,10 @@ CREATE POLICY "units_admin_policy" ON public.units
   WITH CHECK (public.is_admin());
 
 -- 3. Politiques sur EXPENSE_CATEGORIES
+DROP POLICY IF EXISTS "categories_select_policy" ON public.expense_categories;
 CREATE POLICY "categories_select_policy" ON public.expense_categories
   FOR SELECT
-  TO authenticated
+  TO anon, authenticated
   USING (true);
 
 CREATE POLICY "categories_admin_policy" ON public.expense_categories

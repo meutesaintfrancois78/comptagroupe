@@ -623,3 +623,35 @@ INSERT INTO public.expenses (
     'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', -- Benoît Dupont
     '33333333-3333-3333-3333-333333333301'
   );
+
+-- ====================================================
+-- AUTO-PROFILE TRIGGER ON SIGNUP
+-- ====================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, first_name, last_name, role, status, primary_unit_id)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'first_name', 'Chef'),
+    COALESCE(new.raw_user_meta_data->>'last_name', 'Scout'),
+    'chef',
+    'pending',
+    NULLIF(new.raw_user_meta_data->>'primary_unit_id', '')::uuid
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Auto-confirm emails to prevent blocking
+UPDATE auth.users
+SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
+    confirmed_at = COALESCE(confirmed_at, now()),
+    last_sign_in_at = COALESCE(last_sign_in_at, now())
+WHERE email_confirmed_at IS NULL;
