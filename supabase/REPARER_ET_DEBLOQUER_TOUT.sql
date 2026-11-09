@@ -4,7 +4,7 @@
 -- https://supabase.com/dashboard/project/jthbkzcicmhrdewvgauw/sql/new
 -- ==============================================================================
 
--- 1. Réparer les colonnes NULL dans auth.users (qui causent l'erreur 500 "Database error querying schema")
+-- 1. Réparer les colonnes NULL dans auth.users (élimine l'erreur 500 GoTrue sans toucher à phone qui a une contrainte unique)
 UPDATE auth.users
 SET 
   confirmation_token = COALESCE(confirmation_token, ''),
@@ -12,9 +12,6 @@ SET
   email_change_token_new = COALESCE(email_change_token_new, ''),
   email_change_token_current = COALESCE(email_change_token_current, ''),
   email_change = COALESCE(email_change, ''),
-  phone = COALESCE(phone, ''),
-  phone_change = COALESCE(phone_change, ''),
-  phone_change_token = COALESCE(phone_change_token, ''),
   email_confirmed_at = COALESCE(email_confirmed_at, now()),
   last_sign_in_at = COALESCE(last_sign_in_at, now())
 WHERE confirmation_token IS NULL OR recovery_token IS NULL OR email_confirmed_at IS NULL;
