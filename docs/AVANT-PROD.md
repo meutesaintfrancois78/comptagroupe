@@ -45,7 +45,7 @@ Ordre conseillé : 1 → 7. Faire une sauvegarde de la base avant l'étape 2 (vo
 - [ ] **Authentication → URL Configuration** : retirer `http://localhost:3300/**` des Redirect URLs.
 - [ ] **Authentication → Sign In / Providers → Email** : laisser **« Confirm email » activé**.
 - [ ] Google Cloud (projet `plenary-shard-514210-v6`) : adresse d'assistance et de contact = celle du groupe ou du trésorier ; transférer la propriété du projet si le compte change.
-- [ ] Offre gratuite Supabase : un projet sans activité pendant 7 jours est **mis en pause**. Prévoir une visite régulière ou un petit appel planifié, et une **sauvegarde régulière** (export CSV/ZIP depuis l'écran admin, l'offre gratuite n'a pas de sauvegarde automatique téléchargeable).
+- [ ] Offre gratuite Supabase : un projet sans activité pendant 7 jours est **mis en pause**. Vérifier que les deux réveils tournent et que les alertes arrivent au bon email ([REVEIL-BASE.md](REVEIL-BASE.md)), et faire une **sauvegarde régulière** (export complet depuis l'écran admin : l'offre gratuite n'a pas de sauvegarde téléchargeable).
 - [ ] Changer les mots de passe des comptes qui ont servi aux tests (Supabase, Vercel, Google de la meute) si d'autres personnes les ont eus.
 
 ## 7. Vérification finale

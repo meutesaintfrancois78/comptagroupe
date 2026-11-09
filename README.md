@@ -134,6 +134,7 @@ Avec **Continuer avec Google**, n'importe quel compte Google peut aussi s'inscri
 - **Justificatifs** dans un stockage privé, rangés par dossier d'unité (`<id de l'unité>/<fichier>`) et servis par liens signés d'une heure.
 - **Migrations** : lancées à la main dans l'éditeur SQL de Supabase. Ordre, contrôles, rangement des justificatifs, retour arrière et journal : **[docs/MIGRATIONS.md](docs/MIGRATIONS.md)**.
 - **Connexion Google** : configuration Google Cloud et Supabase pas à pas dans **[docs/CONNEXION-GOOGLE.md](docs/CONNEXION-GOOGLE.md)**.
+- **Réveil de la base** : Supabase gratuit se met en pause après 7 jours sans activité ; deux réveils indépendants (cron-job.org et l'action GitHub `keep-alive.yml`) avec alerte : **[docs/REVEIL-BASE.md](docs/REVEIL-BASE.md)**.
 - **Emails** : fonction serveur Vercel `api/notifier-remboursement.ts`, envoi SMTP ; réglages dans **[docs/EMAILS.md](docs/EMAILS.md)**.
 
 ## 6. Développer en local

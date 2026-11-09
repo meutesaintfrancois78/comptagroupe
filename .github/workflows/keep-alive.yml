@@ -1,30 +1,42 @@
 name: Supabase Keep-Alive
 
+# Filet de sécurité contre la mise en pause du projet Supabase gratuit (7 jours sans activité).
+# Le réveil principal est fait par cron-job.org (voir docs/REVEIL-BASE.md).
+# Une exécution qui échoue envoie un email au compte GitHub du dépôt : c'est l'alerte.
+
 on:
   schedule:
-    # Run every 4 days at 06:00 UTC
-    - cron: '0 6 */4 * *'
+    # Tous les 3 jours à 07:00 UTC (une heure après cron-job.org)
+    - cron: '0 7 */3 * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Ping Supabase REST endpoint
+      - name: Requête réelle sur la base (table units)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
-            echo "Secrets not configured, skipping ping."
-            exit 0
-          fi
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            "$SUPABASE_URL/rest/v1/units?select=id&limit=1")
-          echo "Supabase responded with HTTP $HTTP_STATUS"
-          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 400 ]; then
-            echo "Warning: Received non-2xx status code: $HTTP_STATUS"
+            echo "::error::Secrets SUPABASE_URL ou SUPABASE_ANON_KEY absents : la base n'est pas réveillée."
             exit 1
           fi
+          for attempt in 1 2 3; do
+            BODY=$(curl -s --max-time 20 -w '\n%{http_code}' \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/rest/v1/units?select=id&limit=1")
+            STATUS=$(echo "$BODY" | tail -n1)
+            echo "Essai $attempt : HTTP $STATUS"
+            # 200 et au moins une ligne renvoyée = la base a vraiment répondu
+            if [ "$STATUS" = "200" ] && echo "$BODY" | grep -q '"id"'; then
+              echo "Base réveillée."
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::Supabase ne répond pas (dernier code HTTP $STATUS). Projet peut-être en pause : voir docs/REVEIL-BASE.md"
+          exit 1
