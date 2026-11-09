@@ -12,8 +12,8 @@ import { Unit } from '@/types/database';
 
 type Mode = 'login' | 'register' | 'forgot';
 
-// Le bouton Google n'apparaît qu'une fois le fournisseur configuré dans Supabase (docs/CONNEXION-GOOGLE.md)
-const googleEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH === 'true';
+// Google est configuré dans Supabase (docs/CONNEXION-GOOGLE.md) ; VITE_ENABLE_GOOGLE_AUTH=false masque le bouton
+const googleEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH !== 'false';
 
 /** Logo « G » de Google, couleurs imposées par la charte Google */
 const GoogleLogo: React.FC = () => (

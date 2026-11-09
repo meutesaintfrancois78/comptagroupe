@@ -2,7 +2,7 @@
 
 Les chefs peuvent se connecter avec leur compte Google au lieu d'un mot de passe. Tout reste gratuit : Supabase gère Google dans son offre gratuite, et l'identifiant OAuth de Google Cloud ne coûte rien.
 
-Le code est déjà dans l'appli. Il reste **trois réglages à faire à la main** (environ 15 minutes), puis à activer le bouton.
+**État au 09/11/2026 : configuré et en service.** Projet Google Cloud « Compta Saint-Martin » (`plenary-shard-514210-v6`, compte meute.saintfrancois78@gmail.com), application publiée « En production », fournisseur Google activé dans Supabase, migration `20261109000002` appliquée. Les étapes ci-dessous servent à refaire la configuration sur un autre projet.
 
 ## Ce que voit un chef
 
@@ -67,17 +67,15 @@ Dans le tableau de bord Supabase du projet :
      http://localhost:3300
      ```
 
-## Étape 4 : afficher le bouton
+## Étape 4 : le bouton
 
-Le bouton « Continuer avec Google » n'apparaît que si la variable suivante vaut `true`. Sans elle, un chef cliquerait sur un fournisseur pas encore configuré et tomberait sur une page d'erreur de Supabase.
-
-Dans **Vercel → le projet comptagroupe → Settings → Environment Variables**, ajouter :
+Le bouton « Continuer avec Google » est affiché par défaut. Pour le masquer (par exemple sur un projet où Google n'est pas configuré), ajouter dans **Vercel → Settings → Environment Variables** :
 
 ```text
-VITE_ENABLE_GOOGLE_AUTH=true
+VITE_ENABLE_GOOGLE_AUTH=false
 ```
 
-puis **Deployments → … → Redeploy** sur le dernier déploiement, pour que la variable soit prise en compte.
+puis redéployer.
 
 ## Vérifier
 

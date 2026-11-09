@@ -2,8 +2,11 @@
 
 Ce guide explique quelles migrations SQL existent, dans quel ordre les lancer et comment vérifier qu'elles sont bien passées. Chaque bloc de code se copie avec le bouton en haut à droite du bloc sur GitHub.
 
+> [!NOTE]
+> **Base de test à jour au 09/11/2026** : les migrations jusqu'à `20261109000002` sont appliquées et les justificatifs rangés (voir le [journal](#journal-des-migrations-appliquées)). Ce qui suit sert pour une autre base, ou pour comprendre ce qui a été fait.
+
 > [!IMPORTANT]
-> **À faire maintenant sur la base de test :** lancer `20261109000000`, puis `20261109000001`, puis ranger les anciens justificatifs (étapes 1 à 6). Tant que ce n'est pas fait :
+> **Sur une base qui n'est pas encore à jour :** lancer `20261109000000`, puis `20261109000001`, puis ranger les anciens justificatifs (étapes 1 à 6). Tant que ce n'est pas fait :
 > - la demande de changement d'unité côté chef renvoie une erreur ;
 > - l'onglet Comptes affiche « Email non renseigné » ;
 > - les chefs ne peuvent pas envoyer de justificatif (le stockage refuse l'envoi) ;
@@ -246,7 +249,7 @@ Supabase ne garde pas la trace des scripts lancés à la main. Noter ici chaque 
 | Date | Base | Migration | Par | Remarque |
 | :--- | :--- | :--- | :--- | :--- |
 | | test (`jthbkzcicmhrdewvgauw`) | `20261108000000` à `20261108000002` + `seed.sql` | | installation initiale, date à compléter |
-| | test | `20261109000000` | | |
-| | test | `20261109000001` | | |
-| | test | justificatifs rangés (étape 5) | | |
-| | test | `20261109000002` (connexion Google) | | |
+| 09/11/2026 | test | `20261109000000` | Joseph (avec Claude) | sauvegarde préalable dans les tables `public.sauvegarde_20261109_*` |
+| 09/11/2026 | test | `20261109000001` | Joseph (avec Claude) | contrôles de l'étape 4 au vert |
+| 09/11/2026 | test | justificatifs rangés (étape 5) | Joseph (avec Claude) | 5 fichiers déplacés depuis l'onglet Storage, `proof_path` mis à jour en SQL |
+| 09/11/2026 | test | `20261109000002` (connexion Google) | Joseph (avec Claude) | |
