@@ -12,7 +12,8 @@ VALUES ('receipts', 'receipts', false)
 ON CONFLICT (id) DO UPDATE SET public = false;
 
 -- Politiques RLS sur storage.objects pour le bucket receipts
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- RLS déjà active sur storage.objects ; l'ALTER échoue (« must be owner of table objects ») et bloque tout le script.
+-- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "receipts_insert_policy" ON storage.objects;
 CREATE POLICY "receipts_insert_policy" ON storage.objects

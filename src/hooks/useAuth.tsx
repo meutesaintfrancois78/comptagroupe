@@ -45,9 +45,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const firstName = meta.first_name || emailPrefix;
       const lastName = meta.last_name || 'Saint-Martin';
       const unitId = meta.primary_unit_id || defaultUnitId;
-      const isAdminEmail = authUser.email?.includes('admin') || authUser.email?.includes('dupont');
-      const role = meta.role === 'admin' || isAdminEmail ? 'admin' : 'chef';
-      const status = role === 'admin' ? 'active' : 'pending';
+      // Un profil créé côté client est toujours un chef en attente : le rôle admin se donne côté admin
+      const role = 'chef';
+      const status = 'pending';
 
       const insertRes = await supabase
         .from('profiles')
