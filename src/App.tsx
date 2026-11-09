@@ -17,7 +17,7 @@ import { MartyMascot } from '@/components/shared/MartyMascot';
 import { TestTube2 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const { profile, isLoading: isAuthLoading, signOut } = useAuth();
+  const { user, profile, isLoading: isAuthLoading, profileError, refreshProfile, signOut } = useAuth();
   const isOnline = useNetworkStatus();
 
   // Données globales
@@ -105,9 +105,37 @@ export const App: React.FC = () => {
     );
   }
 
-  // 2. Non connecté -> Écran Login / Inscription
-  if (!profile) {
+  // 2. Utilisateur NON connecté -> Écran Login / Inscription
+  if (!user && !profile) {
     return <Login />;
+  }
+
+  // 3. Profil non chargé ou en cours (garde-fou anti-boucle infinie)
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background text-center">
+        <div className="max-w-md w-full bg-card p-8 rounded-3xl border shadow-xl flex flex-col items-center">
+          <MartyMascot expression="waiting" size="lg" />
+          <h2 className="text-xl font-bold text-foreground mt-4">Initialisation du profil</h2>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            Tu es connecté avec le compte <strong>{user?.email}</strong>. Nous préparons ton profil scout...
+          </p>
+          {profileError && (
+            <div className="mt-3 p-3 text-xs rounded-xl bg-destructive/15 text-destructive font-mono text-left w-full overflow-x-auto">
+              {profileError}
+            </div>
+          )}
+          <div className="mt-6 w-full space-y-2">
+            <Button className="w-full" onClick={() => refreshProfile()}>
+              Réessayer la synchronisation
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => signOut()}>
+              Me déconnecter
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // 3. Compte en attente de validation
