@@ -145,15 +145,26 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                     </div>
                     <div className="mt-0.5 flex items-center space-x-1.5">
                       {isPersonal ? (
-                        exp.reimbursement_status === 'reimbursed' ? (
-                          <Badge variant="success" className="text-[10px] px-1.5 py-0">
-                            Remboursée
-                          </Badge>
-                        ) : (
-                          <Badge variant="warning" className="text-[10px] px-1.5 py-0">
-                            À rembourser
-                          </Badge>
-                        )
+                        <div
+                          className="inline-flex items-center space-x-1.5 py-0.5 px-2 rounded-md bg-muted/40 select-none"
+                          title="Statut géré par les trésoriers et administrateurs"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={exp.reimbursement_status === 'reimbursed'}
+                            disabled
+                            className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-emerald-600 cursor-not-allowed accent-emerald-600"
+                          />
+                          <span
+                            className={`text-[11px] font-bold ${
+                              exp.reimbursement_status === 'reimbursed'
+                                ? 'text-emerald-700 dark:text-emerald-400'
+                                : 'text-amber-700 dark:text-amber-400'
+                            }`}
+                          >
+                            {exp.reimbursement_status === 'reimbursed' ? 'Remboursée ✓' : 'À rembourser'}
+                          </span>
+                        </div>
                       ) : (
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                           Unité

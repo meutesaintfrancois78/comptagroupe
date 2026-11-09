@@ -302,24 +302,25 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
                       </td>
                       <td className="p-3 whitespace-nowrap">
                         {isPersonal ? (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleReimbursed(exp)}
-                            className="focus:outline-none transition-transform active:scale-95"
-                            title="Cliquer pour basculer le statut"
-                          >
-                            {exp.reimbursement_status === 'reimbursed' ? (
-                              <Badge variant="success" className="cursor-pointer hover:opacity-80 text-[10px]">
-                                Remboursée ✓
-                              </Badge>
-                            ) : (
-                              <Badge variant="warning" className="cursor-pointer hover:opacity-80 text-[10px]">
-                                À rembourser
-                              </Badge>
-                            )}
-                          </button>
+                          <label className="inline-flex items-center space-x-2 cursor-pointer select-none group py-1 px-2 rounded-lg hover:bg-muted/60 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={exp.reimbursement_status === 'reimbursed'}
+                              onChange={() => handleToggleReimbursed(exp)}
+                              className="h-4 w-4 rounded border-2 border-amber-500 text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                            />
+                            <span
+                              className={`text-xs font-bold transition-colors ${
+                                exp.reimbursement_status === 'reimbursed'
+                                  ? 'text-emerald-700 dark:text-emerald-400'
+                                  : 'text-amber-700 dark:text-amber-400 group-hover:underline'
+                              }`}
+                            >
+                              {exp.reimbursement_status === 'reimbursed' ? 'Remboursée ✓' : 'À rembourser'}
+                            </span>
+                          </label>
                         ) : (
-                          <span className="text-muted-foreground text-[10px]">—</span>
+                          <span className="text-muted-foreground text-[11px]">—</span>
                         )}
                       </td>
                       <td className="p-3 text-center whitespace-nowrap">
