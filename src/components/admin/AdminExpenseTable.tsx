@@ -188,30 +188,34 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
     [filteredExpenses]
   );
 
-  // Case « Remboursée » (admin seulement, dépenses en argent perso)
-  const handleToggleReimbursed = async (exp: Expense) => {
-    if (exp.payment_method !== 'personal_money') return;
+  // Case « Remboursée » (admin seulement, dépenses en argent perso) : confirmation, puis définitif
+  const [confirmReimburse, setConfirmReimburse] = useState<Expense | null>(null);
+  const [isReimbursing, setIsReimbursing] = useState(false);
+
+  const handleConfirmReimbursed = async () => {
+    const exp = confirmReimburse;
+    if (!exp || exp.payment_method !== 'personal_money' || exp.reimbursement_status === 'reimbursed') return;
     setErrorMsg(null);
-    const newStatus = exp.reimbursement_status === 'reimbursed' ? 'pending' : 'reimbursed';
+    setIsReimbursing(true);
     const { error } = await supabase
       .from('expenses')
-      .update({ reimbursement_status: newStatus })
+      .update({ reimbursement_status: 'reimbursed' })
       .eq('id', exp.id);
+    setIsReimbursing(false);
+    setConfirmReimburse(null);
 
     if (error) {
       setErrorMsg(error.message || 'Erreur lors de la mise à jour du remboursement.');
       return;
     }
     onRefresh();
-    if (newStatus === 'reimbursed') {
-      const who = exp.creator?.first_name || 'chef';
-      setNotificationMsg(`Dépense de ${who} marquée comme remboursée.${isMockMode ? ' (démo : aucun email)' : ' Envoi de l\'email…'}`);
-      if (!isMockMode) {
-        const mail = await notifyReimbursement(exp.id);
-        setNotificationMsg(`Dépense de ${who} marquée comme remboursée. ${mail}`);
-      }
-      setTimeout(() => setNotificationMsg(null), 6000);
+    const who = exp.creator?.first_name || 'chef';
+    setNotificationMsg(`Dépense de ${who} marquée comme remboursée.${isMockMode ? ' (démo : aucun email)' : ' Envoi de l\'email…'}`);
+    if (!isMockMode) {
+      const mail = await notifyReimbursement(exp.id);
+      setNotificationMsg(`Dépense de ${who} marquée comme remboursée. ${mail}`);
     }
+    setTimeout(() => setNotificationMsg(null), 6000);
   };
 
   // Supprimer une dépense (admins uniquement)
@@ -240,16 +244,19 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
     return (
       <label
         className={cn(
-          'inline-flex min-h-[44px] min-w-[44px] cursor-pointer items-center gap-2 select-none',
+          'inline-flex min-h-[44px] min-w-[44px] items-center gap-2 select-none',
+          checked ? 'cursor-default' : 'cursor-pointer',
           !withText && 'justify-center'
         )}
+        title={checked ? 'Remboursement définitif' : undefined}
       >
         <input
           type="checkbox"
           checked={checked}
-          onChange={() => handleToggleReimbursed(exp)}
+          disabled={checked}
+          onChange={() => !checked && setConfirmReimburse(exp)}
           aria-label={withText ? undefined : `Remboursée : ${motifOf(exp)}`}
-          className="m-0 h-5 w-5 cursor-pointer accent-green"
+          className={cn('m-0 h-5 w-5 accent-green', checked ? 'cursor-default' : 'cursor-pointer')}
         />
         {withText && <span className="text-[14px] font-bold">Remboursée</span>}
       </label>
@@ -565,6 +572,39 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
       />
 
       {/* Aperçu du justificatif (lien signé) */}
+      <Dialog
+        isOpen={Boolean(confirmReimburse)}
+        onClose={() => !isReimbursing && setConfirmReimburse(null)}
+        title="Confirmer le remboursement"
+        variant="center"
+        role="alertdialog"
+        className="max-w-[440px]"
+      >
+        {confirmReimburse && (
+          <div className="flex flex-col gap-4">
+            <p className="text-[15px] leading-relaxed">
+              As-tu bien remboursé <strong>{formatCurrency(confirmReimburse.amount)}</strong> à{' '}
+              <strong>
+                {[confirmReimburse.creator?.first_name, confirmReimburse.creator?.last_name].filter(Boolean).join(' ') || 'ce chef'}
+              </strong>{' '}
+              ({motifOf(confirmReimburse)}, {formatDateFr(confirmReimburse.date)}) ?
+            </p>
+            <Banner tone="warning">
+              C'est définitif : la dépense ne pourra plus revenir « À rembourser ».
+              {!isMockMode && ' Le chef reçoit un email de confirmation.'}
+            </Banner>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="neutral" onClick={() => setConfirmReimburse(null)} disabled={isReimbursing}>
+                Annuler
+              </Button>
+              <Button onClick={handleConfirmReimbursed} disabled={isReimbursing}>
+                {isReimbursing ? 'Enregistrement…' : 'Oui, c\'est remboursé'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
+
       <Dialog
         isOpen={Boolean(preview?.signed_proof_url)}
         onClose={() => setPreview(null)}

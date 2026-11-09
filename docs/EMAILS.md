@@ -6,7 +6,7 @@ Quand un admin coche **« Remboursée »** sur une dépense payée avec l'argent
 - **Contenu** : montant, date, motif et unité. Pas de lien : le chef retrouve la dépense dans l'appli. Il peut répondre à l'email, la réponse arrive dans la boîte qui envoie.
 - **Expéditeur** : « Compta Groupe Saint-Martin », depuis l'adresse réglée dans `SMTP_USER`.
 
-Le message affiché à l'admin dit si l'email est parti (« Email envoyé à … ») ou pourquoi il n'est pas parti. Décocher puis recocher « Remboursée » renvoie l'email.
+Le message affiché à l'admin dit si l'email est parti (« Email envoyé à … ») ou pourquoi il n'est pas parti. Le remboursement est définitif (confirmation demandée, case verrouillée ensuite) : l'email part une seule fois. S'il n'est pas parti, voir « Messages d'erreur » puis renvoyer à la main depuis la boîte Gmail.
 
 ## Comment ça marche
 
@@ -49,7 +49,7 @@ Facultatives : `SMTP_HOST` (défaut `smtp.gmail.com`), `SMTP_PORT` (défaut `465
 
 | Faire | Résultat attendu |
 | :--- | :--- |
-| En admin, cocher « Remboursée » sur une dépense en argent perso | « Dépense de … marquée comme remboursée. Email envoyé à … » |
+| En admin, cocher « Remboursée » sur une dépense en argent perso, puis « Oui, c'est remboursé » | « Dépense de … marquée comme remboursée. Email envoyé à … » |
 | Boîte du chef | Email « [Comptabilité groupe] Remboursement de ta dépense du … » |
 | Boîte d'envoi du compte Gmail | L'email apparaît dans « Envoyés » |
 
