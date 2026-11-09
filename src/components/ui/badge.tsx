@@ -2,31 +2,40 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+// Pastilles de la maquette : rayon 999, contour 2 px encre, 12-13 px 800.
+// La couleur ne porte jamais le sens seule : chaque pastille contient un mot.
 const badgeVariants = cva(
-  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center gap-1 rounded-full border-2 border-on-color px-2.5 py-0.5 text-[12px] font-extrabold leading-5 text-on-color whitespace-nowrap',
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary text-primary-foreground shadow',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground',
-        destructive: 'border-transparent bg-destructive/15 text-destructive border-destructive/20',
-        outline: 'text-foreground',
-        success: 'border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
-        warning: 'border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20',
+        green: 'bg-green',
+        blue: 'bg-blue',
+        yellow: 'bg-yellow',
+        red: 'bg-red',
+        neutral: 'bg-surface2 text-ink border-line',
+        dashed: 'bg-transparent text-ink border-line border-dashed',
+        // Anciens noms
+        default: 'bg-green',
+        success: 'bg-green',
+        secondary: 'bg-blue',
+        warning: 'bg-yellow',
+        destructive: 'bg-red',
+        outline: 'bg-surface2 text-ink border-line',
       },
     },
     defaultVariants: {
-      variant: 'default',
+      variant: 'neutral',
     },
   }
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {}
 
 function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
 export { Badge, badgeVariants };

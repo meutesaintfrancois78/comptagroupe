@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase';
 import { Unit, Period, ExpenseCategory, Expense, Profile } from '@/types/database';
-import { Header } from '@/components/layout/Header';
+import { Header, Footer } from '@/components/layout/Header';
 import { Login } from '@/pages/Login';
 import { PendingAccountScreen } from '@/components/chef/PendingAccountScreen';
 import { ChefHome } from '@/components/chef/ChefHome';
@@ -15,10 +15,88 @@ import { AdminSandboxTest } from '@/pages/AdminSandboxTest';
 import { Button } from '@/components/ui/button';
 import { MartyMascot } from '@/components/shared/MartyMascot';
 import { PWAInstallBanner } from '@/components/shared/PWAInstallBanner';
+import { Banner } from '@/components/ui/feedback';
 import { attachSignedUrls } from '@/lib/storage';
+import { cn } from '@/lib/utils';
 import { TestTube2 } from 'lucide-react';
 
-export const App: React.FC = () => {
+/** Cadre des écrans pleins (chargement, erreur, profil, accès suspendu) : colonne centrée */
+const CenteredScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div className="min-h-dvh bg-bg text-ink">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col items-center justify-center gap-5 px-7 py-10 text-center">
+      {children}
+    </main>
+  </div>
+);
+
+/** Écran 5 : chargement */
+const LoadingScreen: React.FC = () => (
+  <div className="min-h-dvh bg-bg text-ink">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col items-center justify-center gap-6 p-10 text-center">
+      <MartyMascot expression="ready" size={124} shadow={6} />
+      <p role="status" className="max-w-[260px] text-[19px] font-extrabold leading-[1.3]">
+        Chargement de Compta Groupe Saint-Martin…
+      </p>
+      <div
+        aria-hidden="true"
+        className="h-4 w-[200px] max-w-full overflow-hidden rounded-lg border-2.5 border-line bg-surface"
+      >
+        <div className="h-full w-[62%] bg-blue" />
+      </div>
+    </main>
+  </div>
+);
+
+/** Écran 30 : erreur inattendue, « Réessayer » recharge l'appli */
+export const ErrorScreen: React.FC = () => (
+  <CenteredScreen>
+    <MartyMascot
+      expression="error"
+      size={124}
+      circle="red"
+      shadow={6}
+      badge={
+        <span
+          aria-hidden="true"
+          className="flex h-11 w-11 translate-y-0.5 items-center justify-center rounded-full border-2.5 border-on-color bg-white text-2xl font-extrabold text-on-color"
+        >
+          !
+        </span>
+      }
+    />
+    <h1 className="text-[28px] font-extrabold leading-[1.1]">Oups, ça a coincé</h1>
+    <p className="text-base font-medium text-muted">
+      Une erreur est survenue. Réessaie dans un instant ; si ça continue, préviens un admin du groupe.
+    </p>
+    <Button size="lg" className="w-full" onClick={() => window.location.reload()}>
+      Réessayer
+    </Button>
+  </CenteredScreen>
+);
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown, info: React.ErrorInfo) {
+    console.error('Erreur inattendue dans l’appli', error, info.componentStack);
+  }
+
+  render() {
+    return this.state.hasError ? <ErrorScreen /> : this.props.children;
+  }
+}
+
+export const App: React.FC = () => (
+  <ErrorBoundary>
+    <AppContent />
+  </ErrorBoundary>
+);
+
+const AppContent: React.FC = () => {
   const { user, profile, isLoading: isAuthLoading, profileError, refreshProfile, signOut } = useAuth();
   const isOnline = useNetworkStatus();
 
@@ -105,13 +183,9 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', checkHash);
   }, []);
 
-  // 1. Écran de chargement initial
+  // 1. Écran de chargement initial (écran 5)
   if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <MartyMascot expression="hello" size="md" subtitle="Chargement de Compta Groupe Saint-Martin..." />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // 2. Utilisateur NON connecté -> Écran Login / Inscription
@@ -122,28 +196,27 @@ export const App: React.FC = () => {
   // 3. Profil non chargé ou en cours (garde-fou anti-boucle infinie)
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background text-center">
-        <div className="max-w-md w-full bg-card p-8 rounded-3xl border shadow-xl flex flex-col items-center">
-          <MartyMascot expression="waiting" size="lg" />
-          <h2 className="text-xl font-bold text-foreground mt-4">Initialisation du profil</h2>
-          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Tu es connecté avec le compte <strong>{user?.email}</strong>. Nous préparons ton profil scout...
-          </p>
-          {profileError && (
-            <div className="mt-3 p-3 text-xs rounded-xl bg-destructive/15 text-destructive font-mono text-left w-full overflow-x-auto">
-              {profileError}
-            </div>
-          )}
-          <div className="mt-6 w-full space-y-2">
-            <Button className="w-full" onClick={() => refreshProfile()}>
-              Réessayer la synchronisation
-            </Button>
-            <Button variant="outline" className="w-full" onClick={() => signOut()}>
-              Me déconnecter
-            </Button>
-          </div>
+      <CenteredScreen>
+        <MartyMascot expression="waiting" size={124} shadow={6} />
+        <h1 className="text-[28px] font-extrabold leading-[1.1]">Initialisation du profil</h1>
+        <p className="text-base font-medium text-muted">
+          Tu es connecté avec le compte <strong className="break-all text-ink">{user?.email}</strong>. On prépare ton
+          profil…
+        </p>
+        {profileError && (
+          <Banner tone="error" className="w-full text-left">
+            <span className="break-words font-mono text-[13px]">{profileError}</span>
+          </Banner>
+        )}
+        <div className="flex w-full flex-col gap-3">
+          <Button size="lg" onClick={() => refreshProfile()}>
+            Réessayer la synchronisation
+          </Button>
+          <Button variant="neutral" size="lg" onClick={() => signOut()}>
+            Me déconnecter
+          </Button>
         </div>
-      </div>
+      </CenteredScreen>
     );
   }
 
@@ -154,21 +227,7 @@ export const App: React.FC = () => {
 
   // 4. Compte désactivé ou refusé
   if (profile.status === 'deactivated' || profile.status === 'rejected') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background text-center">
-        <div className="max-w-md w-full bg-card p-8 rounded-3xl border shadow-xl">
-          <MartyMascot expression="error" size="lg" />
-          <h2 className="text-xl font-bold text-foreground mt-4">Accès suspendu</h2>
-          <p className="text-sm text-muted-foreground mt-2">
-            Ton compte a été {profile.status === 'rejected' ? 'refusé' : 'désactivé'} par un administrateur.
-            Rapproche-toi de ton chef de groupe en cas d'erreur.
-          </p>
-          <Button variant="outline" className="mt-6 w-full" onClick={signOut}>
-            Me déconnecter
-          </Button>
-        </div>
-      </div>
-    );
+    return <PendingAccountScreen variant="suspended" />;
   }
 
   // Période ouverte active pour les chefs
@@ -194,7 +253,7 @@ export const App: React.FC = () => {
   const pendingProfiles = allProfiles.filter((p) => p.status === 'pending');
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col overflow-x-clip bg-bg text-ink">
       {/* Header global */}
       <Header
         profile={profile}
@@ -205,10 +264,14 @@ export const App: React.FC = () => {
         isOnline={isOnline}
       />
 
-      {/* Bannière 3 min admin si comptes en attente */}
-      {profile.role === 'admin' && pendingProfiles.length > 0 && !isSandboxOpen && (
+      {/* Fenêtre imposée toutes les 3 min : comptes en attente et demandes de changement d'unité */}
+      {profile.role === 'admin' &&
+        (pendingProfiles.length > 0 || allProfiles.some((p) => p.requested_unit_id)) &&
+        !isSandboxOpen && (
         <PendingValidationBanner
           pendingProfiles={pendingProfiles}
+          profiles={allProfiles}
+          onRefresh={loadData}
           units={units}
           onValidate={async (pId, uId) => {
             await supabase.from('profiles').update({ status: 'active', primary_unit_id: uId }).eq('id', pId);
@@ -222,7 +285,12 @@ export const App: React.FC = () => {
       )}
 
       {/* Contenu principal selon rôle */}
-      <main className="flex-1 container mx-auto px-4 py-4">
+      <main
+        className={cn(
+          'mx-auto w-full min-w-0 flex-1',
+          profile.role === 'admin' || isSandboxOpen ? 'max-w-admin px-4 py-4 md:px-6' : 'max-w-chef'
+        )}
+      >
         {isSandboxOpen && isSandboxEnabled ? (
           <AdminSandboxTest
             onDataReset={loadData}
@@ -254,28 +322,18 @@ export const App: React.FC = () => {
       </main>
 
       {/* Pied de page */}
-      <footer className="border-t py-4 text-center text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between container mx-auto px-4 gap-2">
-        <div>
-          Compta Groupe Saint-Martin • Conservation légale 10 ans
-        </div>
-        <div className="flex items-center space-x-3">
-          {profile.role === 'admin' && isSandboxEnabled && (
-            <button
-              onClick={() => setIsSandboxOpen(!isSandboxOpen)}
-              className="text-amber-700 dark:text-amber-400 hover:underline flex items-center font-bold"
-            >
-              <TestTube2 className="w-3.5 h-3.5 mr-1" />
-              {isSandboxOpen ? 'Quitter la Sandbox' : 'Sandbox de test'}
-            </button>
-          )}
+      <Footer onOpenLegal={() => setIsLegalOpen(true)} width={profile.role === 'admin' || isSandboxOpen ? 'admin' : 'chef'}>
+        {profile.role === 'admin' && isSandboxEnabled && (
           <button
-            onClick={() => setIsLegalOpen(true)}
-            className="hover:underline text-primary font-medium"
+            type="button"
+            onClick={() => setIsSandboxOpen(!isSandboxOpen)}
+            className="ml-3 flex min-h-[44px] items-center gap-1 text-[12px] font-bold text-ink underline underline-offset-[3px]"
           >
-            Mentions légales & CGU
+            <TestTube2 className="h-4 w-4" aria-hidden="true" />
+            {isSandboxOpen ? 'Quitter la sandbox' : 'Sandbox de test'}
           </button>
-        </div>
-      </footer>
+        )}
+      </Footer>
 
       {/* Bannière d'installation PWA mobile */}
       <PWAInstallBanner />

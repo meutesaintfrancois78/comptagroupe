@@ -1,45 +1,36 @@
 import React from 'react';
-import { WifiOff, RefreshCw } from 'lucide-react';
+import { Save, WifiOff } from 'lucide-react';
 import { MartyMascot } from '@/components/shared/MartyMascot';
-import { Button } from '@/components/ui/button';
 
-interface OfflineScreenProps {
-  onRetry?: () => void;
-}
-
-export const OfflineScreen: React.FC<OfflineScreenProps> = ({ onRetry }) => {
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-background/95 backdrop-blur-md text-center animate-in fade-in">
-      <div className="max-w-md w-full bg-card p-8 rounded-3xl border shadow-xl flex flex-col items-center">
-        <div className="w-14 h-14 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mb-4">
-          <WifiOff className="w-8 h-8" />
-        </div>
-
-        <MartyMascot
-          expression="offline"
-          size="lg"
-        />
-
-        <h2 className="text-2xl font-extrabold text-foreground mt-4">
-          Pas de connexion !
-        </h2>
-
-        <p className="text-muted-foreground mt-2 text-base">
-          Reviens quand tu captes. Ne t'inquiète pas : ton formulaire en cours reste bien au chaud en mémoire locale !
-        </p>
-
-        <div className="mt-6 w-full flex flex-col space-y-3">
-          <Button
-            variant="default"
-            size="lg"
-            onClick={() => onRetry ? onRetry() : window.location.reload()}
-            className="w-full"
+/**
+ * Écran plein « Pas de réseau pour l'instant ». Il disparaît seul au retour du réseau
+ * (App l'affiche tant que useNetworkStatus renvoie false).
+ */
+export const OfflineScreen: React.FC = () => (
+  <div className="fixed inset-0 z-50 overflow-y-auto bg-bg text-ink">
+    <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col items-center justify-center gap-5 px-7 py-10 text-center">
+      <MartyMascot
+        expression="offline"
+        size={124}
+        circle="surface2"
+        shadow={6}
+        badge={
+          <span
+            aria-hidden="true"
+            className="flex h-11 w-11 translate-y-0.5 items-center justify-center rounded-full border-2.5 border-on-color bg-yellow text-on-color"
           >
-            <RefreshCw className="mr-2 h-5 w-5" />
-            Réessayer maintenant
-          </Button>
-        </div>
+            <WifiOff className="h-[22px] w-[22px]" strokeWidth={2.4} />
+          </span>
+        }
+      />
+      <h1 className="text-[28px] font-extrabold leading-[1.1]">Pas de réseau pour l'instant</h1>
+      <p className="text-base font-medium text-muted">Attends d'être en ligne pour envoyer ta dépense.</p>
+      <div className="flex items-start gap-3 rounded-[18px] border-2.5 border-line bg-surface px-4 py-3.5 text-left shadow-pop">
+        <Save className="mt-px h-[22px] w-[22px] shrink-0" strokeWidth={2.2} aria-hidden="true" />
+        <span className="text-[15px] font-semibold leading-[1.4]">
+          Ton brouillon est gardé sur ce téléphone : tu reprendras là où tu t'es arrêté.
+        </span>
       </div>
-    </div>
-  );
-};
+    </main>
+  </div>
+);

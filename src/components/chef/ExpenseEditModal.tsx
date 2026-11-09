@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Lock } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, Select, Textarea } from '@/components/ui/input';
+import { Banner } from '@/components/ui/feedback';
 import { Expense, ExpenseCategory, PaymentMethod, Unit } from '@/types/database';
-import { parseAmount } from '@/lib/utils';
+import { cn, parseAmount } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { buildExpenseUpdatePayload } from '@/lib/permissions';
 
@@ -16,6 +18,15 @@ interface ExpenseEditModalProps {
   isAdmin?: boolean;
   onUpdated: () => void;
 }
+
+// Champs compacts de la fenêtre « Modifier » : 46 px, rayon 12
+const editField = 'min-h-[46px] rounded-lg px-3 min-w-0';
+
+const Label: React.FC<{ htmlFor: string; children: React.ReactNode }> = ({ htmlFor, children }) => (
+  <label htmlFor={htmlFor} className="text-[13px] font-bold">
+    {children}
+  </label>
+);
 
 export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
   isOpen,
@@ -60,13 +71,14 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLockedForChef) return;
     const parsed = parseAmount(amount);
     if (!parsed || parsed <= 0) {
-      setErrorMsg('Veuillez saisir un montant valide.');
+      setErrorMsg('Saisis un montant valide.');
       return;
     }
     if (isAutre && !customCategory.trim()) {
-      setErrorMsg('Veuillez renseigner le motif pour "Autre".');
+      setErrorMsg('Précise le motif pour « Autre ».');
       return;
     }
 
@@ -85,7 +97,7 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
     );
 
     if (!payloadResult.allowed) {
-      setErrorMsg(payloadResult.error || "Action non autorisée.");
+      setErrorMsg(payloadResult.error || 'Action non autorisée.');
       return;
     }
 
@@ -93,10 +105,7 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
     setErrorMsg(null);
 
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .update(payloadResult.payload)
-        .eq('id', expense.id);
+      const { error } = await supabase.from('expenses').update(payloadResult.payload).eq('id', expense.id);
 
       if (error) {
         throw new Error(error.message || 'Erreur lors de la modification.');
@@ -111,136 +120,148 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
     }
   };
 
+  const id = (name: string) => `edit-${expense.id}-${name}`;
+
   return (
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Modifier la dépense"
-      description="Toute modification est tracée dans l'historique d'audit."
-      className="max-w-md"
+      title={<span className="text-[24px]">{isLockedForChef ? 'Dépense remboursée' : 'Modifier la dépense'}</span>}
+      description="Chaque modification est notée dans l'historique : qui, quand, avant et après."
     >
-      <form onSubmit={handleSave} className="space-y-4 pt-2">
+      <form onSubmit={handleSave} className="flex flex-col gap-3">
         {isLockedForChef && (
-          <div className="p-3 bg-amber-500/15 text-amber-800 dark:text-amber-300 rounded-xl text-xs font-semibold">
-            🔒 Cette dépense a déjà été remboursée par la trésorerie. Elle est verrouillée en lecture seule pour les chefs d'unité.
+          <div className="flex items-start gap-2.5 rounded-[14px] border-2 border-on-color bg-yellow px-3.5 py-3 text-[13px] font-semibold leading-snug text-on-color">
+            <Lock className="mt-px h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+            <span>
+              Cette dépense a déjà été remboursée par la trésorerie : elle est verrouillée en lecture seule.
+            </span>
           </div>
         )}
 
-        {errorMsg && (
-          <div className="p-3 bg-destructive/15 text-destructive rounded-xl text-xs font-semibold">
-            {errorMsg}
+        {errorMsg && <Banner tone="error">{errorMsg}</Banner>}
+
+        <fieldset disabled={isLockedForChef} className="m-0 flex min-w-0 flex-col gap-3 border-0 p-0">
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="flex min-w-0 flex-col gap-1">
+              <Label htmlFor={id('amount')}>Montant (€)</Label>
+              <Input
+                id={id('amount')}
+                type="text"
+                inputMode="decimal"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className={cn(editField, 'font-bold')}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <Label htmlFor={id('date')}>Date</Label>
+              <Input
+                id={id('date')}
+                type="date"
+                required
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className={cn(editField, 'px-2 text-[15px] font-medium')}
+              />
+            </div>
           </div>
-        )}
 
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground mb-1">
-            Montant (€)
-          </label>
-          <Input
-            type="text"
-            required
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </div>
+          {isAdmin && units.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={id('unit')}>Unité rattachée</Label>
+              <Select
+                id={id('unit')}
+                value={unitId}
+                onChange={(e) => setUnitId(e.target.value)}
+                className={cn(editField, 'font-medium')}
+              >
+                {units.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground mb-1">
-            Date
-          </label>
-          <Input
-            type="date"
-            required
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-
-        {isAdmin && units.length > 0 && (
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground mb-1">
-              Unité rattachée (Modification Admin)
-            </label>
-            <select
-              value={unitId}
-              onChange={(e) => setUnitId(e.target.value)}
-              className="h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium"
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={id('cat')}>Catégorie</Label>
+            <Select
+              id={id('cat')}
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className={cn(editField, 'font-medium')}
             >
-              {units.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
-        )}
 
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground mb-1">
-            Catégorie / Motif
-          </label>
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium"
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          {isAutre && (
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={id('custom')}>Précisez le motif</Label>
+              <Input
+                id={id('custom')}
+                type="text"
+                required
+                placeholder="Ex : double des clés du local"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                className={cn(editField, 'font-medium')}
+              />
+            </div>
+          )}
 
-        {isAutre && (
-          <div>
-            <label className="block text-xs font-bold text-muted-foreground mb-1">
-              Précision du motif libre
-            </label>
-            <Input
-              type="text"
-              required
-              value={customCategory}
-              onChange={(e) => setCustomCategory(e.target.value)}
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={id('pay')}>Mode de paiement</Label>
+            <Select
+              id={id('pay')}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+              className={cn(editField, 'font-medium')}
+            >
+              <option value="unit_money">Argent de l'unité</option>
+              <option value="personal_money">Argent perso</option>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor={id('comment')}>Commentaire</Label>
+            <Textarea
+              id={id('comment')}
+              rows={2}
+              maxLength={300}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className="min-w-0 resize-none rounded-lg px-3 py-2.5 font-medium"
             />
           </div>
-        )}
+        </fieldset>
 
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground mb-1">
-            Mode de paiement
-          </label>
-          <select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-            className="h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium"
-          >
-            <option value="unit_money">Argent de l'unité</option>
-            <option value="personal_money">Argent perso (à rembourser)</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-muted-foreground mb-1">
-            Commentaire facultatif
-          </label>
-          <Input
-            type="text"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-        </div>
-
-        <div className="pt-4 flex justify-end space-x-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {isLockedForChef ? 'Fermer' : 'Annuler'}
+        {isLockedForChef ? (
+          <Button type="button" variant="neutral" onClick={onClose} className="mt-1 w-full text-[15px]">
+            Fermer
           </Button>
-          {!isLockedForChef && (
-            <Button type="submit" variant="default" isLoading={isLoading}>
+        ) : (
+          <div className="mt-1 grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2.5">
+            <Button type="button" variant="neutral" onClick={onClose} className="px-2 text-[15px]">
+              Annuler
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={isLoading}
+              className="whitespace-normal px-2 text-[15px] leading-tight"
+            >
               Enregistrer les modifications
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </form>
     </Dialog>
   );

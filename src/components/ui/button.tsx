@@ -3,29 +3,35 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Boutons de la maquette : contour 2,5 px, rayon 16, ombre décalée sans flou
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] select-none',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap font-extrabold transition-transform select-none disabled:pointer-events-none disabled:opacity-45 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90 active:bg-primary/95',
-        destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-        outline: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
-        secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
-        scout: 'bg-emerald-700 text-white shadow-md hover:bg-emerald-800 active:bg-emerald-900',
+        primary: 'bg-green text-on-color border-2.5 border-line shadow-pop hover:brightness-105',
+        secondary: 'bg-blue text-on-color border-2.5 border-line shadow-pop hover:brightness-105',
+        neutral: 'bg-surface text-ink border-2.5 border-line hover:bg-surface2',
+        destructive: 'bg-surface text-error border-2.5 border-error hover:bg-error-bg',
+        purge: 'bg-red text-on-color border-2.5 border-on-color',
+        icon: 'bg-transparent text-ink border-2 border-line hover:bg-surface2',
+        link: 'bg-transparent text-link underline underline-offset-4 decoration-2 px-0 shadow-none active:translate-x-0 active:translate-y-0',
+        // Anciens noms, ramenés sur les nouveaux styles
+        default: 'bg-green text-on-color border-2.5 border-line shadow-pop hover:brightness-105',
+        scout: 'bg-green text-on-color border-2.5 border-line shadow-pop hover:brightness-105',
+        outline: 'bg-surface text-ink border-2.5 border-line hover:bg-surface2',
+        ghost: 'bg-transparent text-ink hover:bg-surface2',
       },
       size: {
-        default: 'h-11 px-5 py-2.5 min-h-[44px]',
-        sm: 'h-9 rounded-md px-3 text-xs min-h-[36px]',
-        lg: 'h-13 rounded-xl px-8 text-base min-h-[48px] font-semibold',
-        icon: 'h-11 w-11 min-h-[44px] min-w-[44px]',
+        default: 'min-h-[52px] px-5 rounded-xl text-base',
+        lg: 'min-h-[54px] px-6 rounded-xl text-[17px]',
+        sm: 'min-h-[40px] px-3 rounded-lg text-sm',
+        icon: 'h-11 w-11 min-w-[44px] rounded-lg p-0',
+        link: 'min-h-[32px] text-sm font-bold',
       },
     },
     defaultVariants: {
-      variant: 'default',
-      size: 'default',
+      variant: 'primary',
     },
   }
 );
@@ -37,15 +43,18 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, isLoading, children, disabled, ...props }, ref) => {
+  ({ className, variant, size, isLoading, children, disabled, type = 'button', ...props }, ref) => {
+    const resolvedSize = size ?? (variant === 'link' ? 'link' : variant === 'icon' ? 'icon' : 'default');
     return (
       <button
-        className={cn(buttonVariants({ variant, size, className }))}
+        type={type}
+        className={cn(buttonVariants({ variant, size: resolvedSize, className }))}
         ref={ref}
         disabled={disabled || isLoading}
+        aria-busy={isLoading || undefined}
         {...props}
       >
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {isLoading && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
         {children}
       </button>
     );

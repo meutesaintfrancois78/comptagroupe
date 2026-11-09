@@ -1,26 +1,42 @@
 // Service Worker pour l'application PWA Compta Groupe Saint-Martin
-const CACHE_NAME = 'saint-martin-compta-shell-v3';
+const CACHE_NAME = 'saint-martin-compta-shell-v4';
+const OFFLINE_URL = '/offline.html';
 const APP_SHELL = [
   '/',
   '/index.html',
+  OFFLINE_URL,
   '/manifest.json',
   '/favicon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/apple-touch-icon.png',
   '/marty/marty-hello.webp',
+  '/marty/marty-ready.webp',
   '/marty/marty-waiting.webp',
   '/marty/marty-success.webp',
   '/marty/marty-offline.webp',
   '/marty/marty-error.webp'
 ];
 
+// Fichiers du build (JS et CSS hachés) référencés par index.html.
+// Sans eux en cache, l'index hors ligne afficherait une page blanche.
+async function bundleAssets() {
+  const response = await fetch('/index.html', { cache: 'no-store' });
+  const html = await response.text();
+  return Array.from(new Set(html.match(/\/assets\/[^"'\s>]+/g) || []));
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL).catch((err) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await cache.addAll(APP_SHELL).catch((err) => {
         console.warn('App Shell precache partial failure:', err);
       });
+      try {
+        await cache.addAll(await bundleAssets());
+      } catch (err) {
+        console.warn('Bundle precache failure:', err);
+      }
     })
   );
   self.skipWaiting();
@@ -36,14 +52,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// L'index en cache n'est utilisable que si tous ses fichiers de build le sont aussi
+async function cachedShell() {
+  const cache = await caches.open(CACHE_NAME);
+  const index = await cache.match('/index.html');
+  if (!index) return null;
+  const html = await index.clone().text();
+  const assets = html.match(/\/assets\/[^"'\s>]+/g) || [];
+  for (const asset of assets) {
+    if (!(await cache.match(asset))) return null;
+  }
+  return index;
+}
+
 self.addEventListener('fetch', (event) => {
-  // Navigation requests: try network, fallback to cached App Shell
+  // Navigation : réseau d'abord, puis l'appli en cache, sinon l'écran hors ligne autonome
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(async () => {
-        const cached = await caches.match('/index.html');
+        const shell = await cachedShell();
+        if (shell) return shell;
+        const offline = await caches.match(OFFLINE_URL);
         return (
-          cached ||
+          offline ||
           new Response('Hors-ligne', {
             status: 503,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -54,7 +85,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Scripts and styles (Vite bundle assets: cache on the fly to avoid blank screen offline)
+  // Scripts et styles du build : cache d'abord, mis à jour en arrière-plan
   if (
     event.request.destination === 'script' ||
     event.request.destination === 'style' ||
@@ -77,7 +108,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets (images, icons, fonts)
+  // Images, icônes, polices
   if (
     event.request.destination === 'image' ||
     event.request.destination === 'font' ||

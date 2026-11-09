@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<title>Pas de réseau · Compta Saint-Martin</title>
+<style>
+  /* Écran 28 de la maquette, autonome : servi par le service worker quand l'appli n'a pas pu se charger */
+  :root {
+    --bg: #FFFFFF; --surface: #FFFFFF; --surface2: #F1F1F4; --ink: #14141F; --muted: #4A4A5E;
+    --line: #14141F; --shadow: #14141F; --on-color: #14141F; --green: #3DDC84; --yellow: #FFD84D;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B0B0F; --surface: #17181F; --surface2: #24252E; --ink: #F5F5F7; --muted: #A9ABBA;
+      --line: #F5F5F7; --shadow: #8CCBFF;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  }
+  main { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+  .marty { position: relative; width: 124px; height: 124px; border-radius: 50%; border: 2.5px solid var(--line); background: var(--surface2); box-shadow: 6px 6px 0 var(--shadow); }
+  .marty img { width: 100%; height: 100%; object-fit: contain; padding: 8%; border-radius: 50%; }
+  .pastille { position: absolute; right: -6px; top: -6px; width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid var(--on-color); background: var(--yellow); color: var(--on-color); display: flex; align-items: center; justify-content: center; }
+  h1 { margin: 0; font-size: 28px; font-weight: 800; line-height: 1.15; }
+  p { margin: 0; font-size: 16px; font-weight: 500; line-height: 1.45; color: var(--muted); }
+  .note { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 14px; border-radius: 16px; border: 2px solid var(--line); background: var(--surface2); color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.4; }
+  button { width: 100%; min-height: 54px; border-radius: 16px; border: 2.5px solid var(--line); background: var(--green); color: var(--on-color); font: inherit; font-size: 17px; font-weight: 800; box-shadow: 4px 4px 0 var(--shadow); cursor: pointer; }
+  button:focus-visible { outline: 3px solid #1F5FA8; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="marty">
+    <img src="/marty/marty-offline.webp" alt="Marty, le bison, hors ligne" />
+    <span class="pastille" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 5.2-2.8"/><path d="M19 12.9a10 10 0 0 0-2.3-1.7"/><path d="M12 20h.01"/></svg>
+    </span>
+  </div>
+  <h1>Pas de réseau pour l'instant</h1>
+  <p>Attends d'être en ligne pour envoyer ta dépense.</p>
+  <div class="note">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3"/><path d="M8 21v-7h8v7"/></svg>
+    <span>Ton brouillon est gardé sur ce téléphone : tu reprendras là où tu t'es arrêté.</span>
+  </div>
+  <button type="button" onclick="location.reload()">Réessayer</button>
+</main>
+</body>
+</html>

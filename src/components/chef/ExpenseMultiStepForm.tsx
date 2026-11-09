@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  FileText,
-  CheckCircle,
-  Clock,
-  Sparkles,
-  AlertCircle,
-  HelpCircle,
-} from 'lucide-react';
+import { Camera, Check, CreditCard, FileText, History, Wallet } from 'lucide-react';
 import { MartyMascot } from '@/components/shared/MartyMascot';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
+import { Input, Textarea } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Banner, StepProgress } from '@/components/ui/feedback';
 import { Profile, Unit, Period, ExpenseCategory, PaymentMethod } from '@/types/database';
-import { parseAmount, formatCurrency, formatDateFr } from '@/lib/utils';
+import { cn, parseAmount, formatCurrency } from '@/lib/utils';
 import { processProofFile, ProcessedProof } from '@/lib/compression';
 import { supabase } from '@/lib/supabase';
+import { categoryIcon } from './ExpenseList';
 
 interface ExpenseMultiStepFormProps {
   profile: Profile;
@@ -28,10 +19,45 @@ interface ExpenseMultiStepFormProps {
   isOnline: boolean;
   onSuccess: () => void;
   onCancel: () => void;
+  /** Appelé dès que la dépense est enregistrée (pour rafraîchir les données en arrière-plan) */
+  onSubmitted?: () => void;
 }
 
 const DRAFT_STORAGE_KEY = 'saint_martin_expense_draft';
 const LAST_MOTIF_KEY = 'saint_martin_last_motif';
+
+const STEP_NAMES = ['Montant', 'Motif', 'Paiement', 'Justificatif', 'Récapitulatif'];
+
+/** « 3,2 Mo » ou « 284 Ko » */
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`;
+  }
+  return `${Math.max(1, Math.round(bytes / 1024))} Ko`;
+}
+
+function readLastMotif(): { savedCatId: string; savedCustom: string } | null {
+  try {
+    const saved = localStorage.getItem(LAST_MOTIF_KEY);
+    return saved ? JSON.parse(saved) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Boutons Retour / Suivant en bas de chaque étape */
+const StepNav: React.FC<{ children: React.ReactNode; wide?: boolean }> = ({ children, wide }) => (
+  <div
+    className={cn(
+      'grid gap-3',
+      wide ? 'grid-cols-[minmax(0,2fr)_minmax(0,3fr)]' : 'grid-cols-[repeat(2,minmax(0,1fr))]'
+    )}
+  >
+    {children}
+  </div>
+);
+
+const navBtn = 'min-h-[54px] px-3';
 
 export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   profile,
@@ -41,7 +67,13 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   isOnline,
   onSuccess,
   onCancel,
+  onSubmitted,
 }) => {
+  // « Autre » toujours en dernier, comme dans la maquette
+  const orderedCategories = [
+    ...categories.filter((c) => c.name !== 'Autre'),
+    ...categories.filter((c) => c.name === 'Autre'),
+  ];
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Form states
@@ -50,6 +82,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   const [customCategory, setCustomCategory] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('unit_money');
   const [proof, setProof] = useState<ProcessedProof | null>(null);
+  const [proofName, setProofName] = useState<string>('');
   const [date, setDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [comment, setComment] = useState<string>('');
 
@@ -58,6 +91,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [lastMotif] = useState(readLastMotif);
 
   // Charger le brouillon s'il existe
   useEffect(() => {
@@ -71,10 +105,11 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
         if (parsed.date) setDate(parsed.date);
         if (parsed.comment) setComment(parsed.comment);
-      } else if (categories.length > 0 && !categoryId) {
-        setCategoryId(categories[0].id);
+      } else if (orderedCategories.length > 0 && !categoryId) {
+        setCategoryId(orderedCategories[0].id);
       }
     } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories]);
 
   // Sauvegarder automatiquement le brouillon en local à chaque changement
@@ -88,7 +123,9 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
         date,
         comment,
       };
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      } catch {}
     }
   }, [amountInput, categoryId, customCategory, paymentMethod, date, comment, isSubmitted]);
 
@@ -96,23 +133,26 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   const selectedCatObj = categories.find((c) => c.id === categoryId);
   const isAutre = selectedCatObj?.name.toLowerCase() === 'autre';
 
-  // Bouton "Dernier motif"
+  // Bouton « Dernier motif »
+  const lastMotifCat = lastMotif ? categories.find((c) => c.id === lastMotif.savedCatId) : undefined;
+  const lastMotifLabel = lastMotifCat
+    ? lastMotifCat.name.toLowerCase() === 'autre' && lastMotif?.savedCustom
+      ? lastMotif.savedCustom
+      : lastMotifCat.name
+    : null;
+
   const handleApplyLastMotif = () => {
-    try {
-      const saved = localStorage.getItem(LAST_MOTIF_KEY);
-      if (saved) {
-        const { savedCatId, savedCustom } = JSON.parse(saved);
-        if (categories.some((c) => c.id === savedCatId)) {
-          setCategoryId(savedCatId);
-          setCustomCategory(savedCustom || '');
-        }
-      }
-    } catch {}
+    if (lastMotif && lastMotifCat) {
+      setCategoryId(lastMotif.savedCatId);
+      setCustomCategory(lastMotif.savedCustom || '');
+      setErrorMsg(null);
+    }
   };
 
   // Traitement du justificatif
   const handleProofChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
 
     setErrorMsg(null);
@@ -120,6 +160,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
     try {
       const processed = await processProofFile(file);
       setProof(processed);
+      setProofName(file.name);
     } catch (err: any) {
       setErrorMsg(err.message || 'Erreur lors du traitement du justificatif.');
     } finally {
@@ -133,28 +174,30 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
     if (currentStep === 1) {
       const parsed = parseAmount(amountInput);
       if (!parsed || parsed <= 0) {
-        setErrorMsg('Veuillez saisir un montant valide supérieur à 0.');
+        setErrorMsg('Saisis un montant valide, supérieur à 0 €.');
         return;
       }
     }
     if (currentStep === 2) {
       if (!categoryId) {
-        setErrorMsg('Veuillez sélectionner un motif de dépense.');
+        setErrorMsg('Choisis un motif de dépense.');
         return;
       }
       if (isAutre && !customCategory.trim()) {
-        setErrorMsg('Veuillez préciser le motif dans le champ texte.');
+        setErrorMsg('Précise le motif dans le champ texte.');
         return;
       }
       // Sauvegarder dans le dernier motif
-      localStorage.setItem(
-        LAST_MOTIF_KEY,
-        JSON.stringify({ savedCatId: categoryId, savedCustom: customCategory.trim() })
-      );
+      try {
+        localStorage.setItem(
+          LAST_MOTIF_KEY,
+          JSON.stringify({ savedCatId: categoryId, savedCustom: customCategory.trim() })
+        );
+      } catch {}
     }
     if (currentStep === 4) {
       if (!proof) {
-        setErrorMsg('Le justificatif (photo ou PDF) est obligatoire.');
+        setErrorMsg("Ajoute un justificatif pour passer à l'étape suivante.");
         return;
       }
     }
@@ -186,14 +229,12 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
     setErrorMsg(null);
 
     try {
-      // 1. Upload du justificatif
+      // 1. Upload du justificatif (bloquant : pas de dépense sans justificatif)
       const ext = proof.isPdf ? 'pdf' : 'jpg';
       const fileName = `${Date.now()}_${unit.name.replace(/\s+/g, '-')}_${parsedAmount}EUR.${ext}`;
       const filePath = `${unit.id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('receipts')
-        .upload(filePath, proof.file);
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(filePath, proof.file);
 
       if (uploadError) {
         throw new Error(
@@ -202,8 +243,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
       }
 
       // 2. Insertion de la dépense
-      const reimbursementStatus =
-        paymentMethod === 'personal_money' ? 'pending' : 'not_applicable';
+      const reimbursementStatus = paymentMethod === 'personal_money' ? 'pending' : 'not_applicable';
 
       const { error: insertError } = await supabase.from('expenses').insert({
         type: 'dépense',
@@ -225,64 +265,56 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
       }
 
       // 3. Nettoyage du brouillon local
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      try {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } catch {}
       setIsSubmitted(true);
+      setIsSubmitting(false);
+      onSubmitted?.();
     } catch (err: any) {
       setErrorMsg(err.message || "Une erreur est survenue lors de l'envoi.");
       setIsSubmitting(false);
     }
   };
 
-  // Écran de succès après soumission (Étape 6)
+  const amountLabel = formatCurrency(parseAmount(amountInput) || 0);
+  const motifLabel = isAutre ? customCategory.trim() || 'Autre' : selectedCatObj?.name || '—';
+
+  /* ---------------------------- Écran 15 : envoyée ---------------------------- */
   if (isSubmitted) {
     return (
-      <div className="max-w-md mx-auto p-4 py-8 text-center animate-in zoom-in-95 duration-300">
+      <div className="flex flex-1 flex-col items-center justify-center gap-[18px] px-1 py-6 text-center">
         <MartyMascot
           expression="success"
-          size="lg"
+          size={132}
+          circle="green"
+          shadow={6}
+          badge={
+            <span aria-hidden="true" className="-mr-1 -mt-0.5 block text-[36px] leading-none">
+              🎉
+            </span>
+          }
         />
-
-        <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-xs font-semibold mt-2 mb-2">
-          <CheckCircle className="w-4 h-4" />
-          <span>Dépense enregistrée avec succès !</span>
-        </div>
-
-        <h2 className="text-2xl font-extrabold text-foreground mt-2">
-          Super, c'est validé !
-        </h2>
-
-        <p className="text-muted-foreground text-sm mt-1 max-w-xs mx-auto">
-          Ta dépense de <strong>{formatCurrency(parseAmount(amountInput) || 0)}</strong> pour <strong>{unit.name}</strong> a bien été transmise aux trésoriers.
+        <h1 className="text-[32px] font-extrabold leading-[1.05]">Super, c'est validé !</h1>
+        <p className="text-[17px] font-semibold leading-snug text-muted" role="status">
+          Ta dépense de <strong className="text-success">{amountLabel}</strong> pour {unit.name} est bien envoyée.
         </p>
-
-        {paymentMethod === 'personal_money' && (
-          <div className="my-4 p-3 rounded-2xl bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs font-medium max-w-xs mx-auto">
-            💰 Dépense avancée sur ton argent personnel : elle apparaîtra "À rembourser" pour les administrateurs.
-          </div>
-        )}
-
-        <div className="mt-8 space-y-3 max-w-xs mx-auto">
+        <div className="mt-2 flex w-full flex-col gap-3">
           <Button
-            size="lg"
-            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white"
+            variant="primary"
+            className={navBtn}
             onClick={() => {
               setIsSubmitted(false);
               setCurrentStep(1);
               setAmountInput('');
               setProof(null);
+              setProofName('');
               setComment('');
             }}
           >
-            <Sparkles className="mr-2 h-5 w-5" />
             Déclarer une autre dépense
           </Button>
-
-          <Button
-            variant="outline"
-            size="default"
-            className="w-full"
-            onClick={onSuccess}
-          >
+          <Button variant="secondary" className={cn(navBtn, 'shadow-none')} onClick={onSuccess}>
             Voir les dépenses de mon unité
           </Button>
         </div>
@@ -290,323 +322,313 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
     );
   }
 
-  return (
-    <div className="max-w-md mx-auto p-4 pb-12">
-      {/* Barre de progression des 5 étapes */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between text-xs font-bold text-muted-foreground mb-2">
-          <span>Étape {currentStep} sur 5</span>
-          <span className="text-primary">
-            {currentStep === 1 && '1. Montant'}
-            {currentStep === 2 && '2. Motif'}
-            {currentStep === 3 && '3. Mode de paiement'}
-            {currentStep === 4 && '4. Justificatif'}
-            {currentStep === 5 && '5. Récapitulatif'}
-          </span>
-        </div>
-        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-          <div
-            className="bg-primary h-full transition-all duration-300 rounded-full"
-            style={{ width: `${(currentStep / 5) * 100}%` }}
-          />
-        </div>
-      </div>
+  const errorBanner = errorMsg ? <Banner tone="error">{errorMsg}</Banner> : null;
 
-      {errorMsg && (
-        <div className="mb-4 p-3 rounded-2xl bg-destructive/15 text-destructive text-sm font-medium flex items-center space-x-2">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+  /* ------------------------------ Étapes 1 à 5 ------------------------------ */
+  return (
+    <div className="flex flex-1 flex-col gap-4">
+      <StepProgress step={currentStep} total={5} name={STEP_NAMES[currentStep - 1]} />
 
       {/* Étape 1 : Montant */}
       {currentStep === 1 && (
-        <Card className="rounded-3xl border shadow-md">
-          <CardContent className="p-6 text-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Montant de la dépense
-            </span>
-            <div className="relative mt-4 flex items-center justify-center">
-              <input
-                id="expense-amount"
-                type="text"
-                inputMode="decimal"
-                autoFocus
-                aria-label="Montant de la dépense en euros"
-                placeholder="0,00"
-                value={amountInput}
-                onChange={(e) => setAmountInput(e.target.value)}
-                className="w-full text-center text-4xl sm:text-5xl font-black bg-transparent text-foreground focus:outline-none placeholder:text-muted-foreground/30"
-              />
-              <span className="text-3xl sm:text-4xl font-bold text-muted-foreground ml-1">
-                €
+        <>
+          <div className="flex flex-1 flex-col justify-center gap-3.5">
+            <div className="flex flex-col items-center gap-3.5 rounded-3xl border-2.5 border-line bg-surface px-5 py-[30px] shadow-pop-lg">
+              <label htmlFor="expense-amount" className="text-[17px] font-bold">
+                Combien as-tu dépensé ?
+              </label>
+              <div className="flex min-w-0 max-w-full items-center justify-center gap-1 border-b-4 border-green px-1.5 pb-1">
+                <input
+                  id="expense-amount"
+                  type="text"
+                  inputMode="decimal"
+                  autoFocus
+                  autoComplete="off"
+                  aria-describedby="expense-amount-hint"
+                  placeholder="0,00"
+                  value={amountInput}
+                  onChange={(e) => setAmountInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleNext();
+                  }}
+                  className="w-[220px] min-w-0 shrink bg-transparent p-0 text-right text-[52px] font-extrabold text-ink outline-none placeholder:text-muted/50 min-[360px]:text-[64px]"
+                />
+                <span aria-hidden="true" className="shrink-0 text-[44px] font-extrabold min-[360px]:text-[52px]">
+                  €
+                </span>
+              </div>
+              <span id="expense-amount-hint" className="text-center text-[14px] font-semibold text-muted">
+                Points et virgules acceptés : 12,50 ou 12.50
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-4">
-              Points et virgules acceptés. Supérieur à 0 €.
-            </p>
-          </CardContent>
-        </Card>
+            {errorBanner}
+          </div>
+          <StepNav>
+            <Button variant="neutral" className={navBtn} onClick={onCancel}>
+              Annuler
+            </Button>
+            <Button variant="primary" className={navBtn} onClick={handleNext}>
+              Suivant
+            </Button>
+          </StepNav>
+        </>
       )}
 
-      {/* Étape 2 : Motif de dépense */}
+      {/* Étape 2 : Motif */}
       {currentStep === 2 && (
-        <Card className="rounded-3xl border shadow-md">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Catégorie de dépense
-              </span>
+        <>
+          <div className="flex flex-1 flex-col gap-3.5">
+            {lastMotifLabel && (
               <button
                 type="button"
                 onClick={handleApplyLastMotif}
-                className="text-xs font-semibold text-primary hover:underline flex items-center"
+                className="flex min-h-[44px] max-w-full items-center gap-2 self-start rounded-full border-2 border-line bg-surface2 px-3.5 py-1.5 text-left text-[14px] font-bold text-ink"
               >
-                <Clock className="w-3.5 h-3.5 mr-1" />
-                Dernier motif
+                <History className="h-4 w-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
+                <span className="min-w-0 break-words">Dernier motif : {lastMotifLabel}</span>
               </button>
-            </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
-              {categories.map((cat) => {
+            <div role="group" aria-label="Motif de la dépense" className="grid grid-cols-3 gap-2.5">
+              {orderedCategories.map((cat) => {
                 const isSelected = categoryId === cat.id;
+                const Icon = categoryIcon(cat.name);
                 return (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setCategoryId(cat.id)}
-                    className={`p-3.5 rounded-2xl text-left font-semibold text-sm transition-all border ${
-                      isSelected
-                        ? 'border-primary bg-primary text-primary-foreground shadow-sm scale-[1.02]'
-                        : 'border-input bg-card hover:bg-accent text-foreground'
-                    }`}
+                    aria-pressed={isSelected}
+                    onClick={() => {
+                      setCategoryId(cat.id);
+                      setErrorMsg(null);
+                    }}
+                    className={cn(
+                      'flex min-h-[104px] min-w-0 flex-col items-center justify-center gap-2 rounded-[18px] border-2.5 border-line px-1 py-2 text-center text-[14px] font-extrabold leading-tight transition-transform',
+                      isSelected ? 'bg-green text-on-color shadow-pop' : 'bg-surface text-ink hover:bg-surface2'
+                    )}
                   >
-                    {cat.name}
+                    <Icon className="h-7 w-7 shrink-0" strokeWidth={2.2} aria-hidden="true" />
+                    <span lang="fr" className="max-w-full hyphens-auto">{cat.name}</span>
                   </button>
                 );
               })}
             </div>
 
             {isAutre && (
-              <div className="pt-2 animate-in fade-in">
-                <label className="block text-xs font-bold text-muted-foreground mb-1">
-                  Précisez le motif (obligatoire) :
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="expense-custom" className="text-[14px] font-bold">
+                  Précisez le motif
                 </label>
                 <Input
+                  id="expense-custom"
                   type="text"
-                  placeholder="Ex : Achat de bois pour table d'intendance"
+                  placeholder="Ex : double des clés du local"
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
                   autoFocus
+                  className="min-h-[50px] rounded-[14px] font-medium"
                 />
               </div>
             )}
-          </CardContent>
-        </Card>
+            {errorBanner}
+          </div>
+          <StepNav>
+            <Button variant="neutral" className={navBtn} onClick={handleBack}>
+              Retour
+            </Button>
+            <Button variant="primary" className={navBtn} onClick={handleNext}>
+              Suivant
+            </Button>
+          </StepNav>
+        </>
       )}
 
       {/* Étape 3 : Mode de paiement */}
       {currentStep === 3 && (
-        <Card className="rounded-3xl border shadow-md">
-          <CardContent className="p-6 space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        <>
+          <div className="flex flex-1 flex-col gap-3.5">
+            <h2 id="pay-question" className="text-[17px] font-bold">
               Avec quel argent as-tu payé ?
-            </span>
-
-            <div className="space-y-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('unit_money')}
-                className={`w-full p-4 rounded-2xl text-left border flex items-center justify-between transition-all ${
-                  paymentMethod === 'unit_money'
-                    ? 'border-primary bg-primary/10 text-foreground ring-2 ring-primary shadow-sm'
-                    : 'border-input bg-card hover:bg-accent text-muted-foreground'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-base text-foreground">
-                    Argent de l'unité (par défaut)
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Payé avec la carte de l'unité ou la caisse d'avance
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full border-2 border-primary flex items-center justify-center">
-                  {paymentMethod === 'unit_money' && (
-                    <div className="w-2.5 h-2.5 bg-primary rounded-full" />
-                  )}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('personal_money')}
-                className={`w-full p-4 rounded-2xl text-left border flex items-center justify-between transition-all ${
-                  paymentMethod === 'personal_money'
-                    ? 'border-amber-600 bg-amber-500/10 text-foreground ring-2 ring-amber-600 shadow-sm'
-                    : 'border-input bg-card hover:bg-accent text-muted-foreground'
-                }`}
-              >
-                <div>
-                  <div className="font-bold text-base text-foreground">
-                    Argent perso (à me rembourser)
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    Tu as avancé tes propres deniers personnels
-                  </div>
-                </div>
-                <div className="w-5 h-5 rounded-full border-2 border-amber-600 flex items-center justify-center">
-                  {paymentMethod === 'personal_money' && (
-                    <div className="w-2.5 h-2.5 bg-amber-600 rounded-full" />
-                  )}
-                </div>
-              </button>
+            </h2>
+            <div role="group" aria-labelledby="pay-question" className="flex flex-col gap-3.5">
+              {(
+                [
+                  {
+                    id: 'unit_money',
+                    title: "Argent de l'unité",
+                    sub: "Payé avec la carte ou la caisse de l'unité",
+                    Icon: CreditCard,
+                    tile: 'bg-green',
+                  },
+                  {
+                    id: 'personal_money',
+                    title: 'Argent perso',
+                    sub: "Tu as avancé l'argent : le groupe te rembourse",
+                    Icon: Wallet,
+                    tile: 'bg-blue',
+                  },
+                ] as const
+              ).map(({ id, title, sub, Icon, tile }) => {
+                const on = paymentMethod === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setPaymentMethod(id)}
+                    className={cn(
+                      'flex min-h-[128px] items-center gap-4 rounded-[22px] border-2.5 border-line p-[18px] text-left',
+                      on ? 'bg-green text-on-color shadow-pop-md' : 'bg-surface text-ink hover:bg-surface2'
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2.5 border-on-color text-on-color',
+                        on ? 'bg-white' : tile
+                      )}
+                    >
+                      <Icon className="h-7 w-7" strokeWidth={2.2} />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="text-[20px] font-extrabold leading-tight">{title}</span>
+                      <span className="text-[14px] font-semibold leading-snug">{sub}</span>
+                    </span>
+                    {on && (
+                      <span
+                        aria-hidden="true"
+                        className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border-2 border-on-color bg-white text-on-color"
+                      >
+                        <Check className="h-4 w-4" strokeWidth={3} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
+            {errorBanner}
+          </div>
+          <StepNav>
+            <Button variant="neutral" className={navBtn} onClick={handleBack}>
+              Retour
+            </Button>
+            <Button variant="primary" className={navBtn} onClick={handleNext}>
+              Suivant
+            </Button>
+          </StepNav>
+        </>
       )}
 
       {/* Étape 4 : Justificatif obligatoire */}
       {currentStep === 4 && (
-        <Card className="rounded-3xl border shadow-md">
-          <CardContent className="p-6 space-y-4 text-center">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Justificatif obligatoire (Ticket ou Facture)
-            </span>
-
+        <>
+          <div className="flex flex-1 flex-col gap-3.5">
             {proof ? (
-              <div className="space-y-3 pt-2">
-                <div className="relative mx-auto w-40 h-40 rounded-2xl overflow-hidden border shadow-inner bg-muted flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3.5 rounded-3xl border-2.5 border-line bg-surface p-[18px] shadow-pop-md">
+                <div className="flex h-[200px] w-[150px] items-center justify-center overflow-hidden rounded-md border-2 border-on-color bg-white text-on-color">
                   {proof.isPdf ? (
-                    <div className="flex flex-col items-center text-red-600">
-                      <FileText className="w-16 h-16" />
-                      <span className="text-xs font-bold mt-1">Fichier PDF</span>
-                    </div>
-                  ) : (
-                    <img
-                      src={proof.previewUrl}
-                      alt="Aperçu justificatif"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  Taille originale : {(proof.originalSize / 1024 / 1024).toFixed(2)} Mo
-                  {!proof.isPdf && (
-                    <span>
-                      {' '}➔ compressé à{' '}
-                      <strong className="text-foreground">
-                        {(proof.compressedSize / 1024).toFixed(0)} Ko
-                      </strong>
+                    <span className="flex flex-col items-center gap-1">
+                      <FileText className="h-14 w-14" aria-hidden="true" />
+                      <span className="text-[12px] font-extrabold">PDF</span>
                     </span>
+                  ) : (
+                    <img src={proof.previewUrl} alt="Aperçu du justificatif" className="h-full w-full object-contain" />
                   )}
                 </div>
-
-                <label className="inline-block cursor-pointer">
-                  <span className="text-xs text-primary font-bold hover:underline">
-                    Changer de justificatif
+                <div className="flex max-w-full flex-col items-center gap-0.5 text-center">
+                  <span className="max-w-full break-all text-[16px] font-extrabold">{proofName || 'Justificatif'}</span>
+                  <span className="text-[14px] font-semibold text-muted">
+                    {proof.isPdf || proof.compressedSize >= proof.originalSize
+                      ? formatSize(proof.originalSize)
+                      : `Compressé : ${formatSize(proof.originalSize)} → ${formatSize(proof.compressedSize)}`}
                   </span>
+                </div>
+                <label className="relative flex min-h-[48px] cursor-pointer items-center rounded-[14px] border-2.5 border-line bg-surface px-[18px] text-[15px] font-extrabold text-ink focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-link hover:bg-surface2">
+                  Changer de justificatif
                   <input
                     type="file"
                     accept="image/*,application/pdf"
-                    capture="environment"
-                    className="hidden"
+                    className="sr-only"
                     onChange={handleProofChange}
                   />
                 </label>
               </div>
             ) : (
-              <div className="py-4 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Option 1 : Prendre une photo directe */}
-                  <label className="cursor-pointer border-2 border-dashed border-primary/40 rounded-2xl p-5 hover:bg-accent transition-colors flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2">
-                      <Camera className="w-6 h-6" />
-                    </div>
-                    <span className="font-bold text-sm text-foreground">Prendre une photo</span>
-                    <span className="text-[11px] text-muted-foreground mt-0.5">Appareil photo direct</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={handleProofChange}
-                    />
-                  </label>
-
-                  {/* Option 2 : Choisir un fichier / PDF / Galerie */}
-                  <label className="cursor-pointer border-2 border-dashed border-muted-foreground/30 rounded-2xl p-5 hover:bg-accent transition-colors flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-muted text-foreground flex items-center justify-center mb-2">
-                      <FileText className="w-6 h-6" />
-                    </div>
-                    <span className="font-bold text-sm text-foreground">Choisir un fichier</span>
-                    <span className="text-[11px] text-muted-foreground mt-0.5">Galerie photo ou PDF</span>
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      onChange={handleProofChange}
-                    />
-                  </label>
-                </div>
-
-                {isCompressing && (
-                  <p className="text-xs text-primary font-semibold mt-3 animate-pulse">
-                    Compression automatique de l'image en cours...
-                  </p>
+              <label
+                className={cn(
+                  'relative flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-3.5 rounded-3xl border-3 border-dashed border-line bg-surface p-5 text-center text-ink focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-link min-[400px]:min-h-[300px]',
+                  isCompressing && 'cursor-wait opacity-80'
                 )}
-              </div>
+              >
+                <span
+                  aria-hidden="true"
+                  className="flex h-20 w-20 items-center justify-center rounded-full border-2.5 border-on-color bg-blue text-on-color"
+                >
+                  <Camera className="h-[38px] w-[38px]" strokeWidth={2} />
+                </span>
+                <span className="max-w-[240px] text-[20px] font-extrabold leading-tight">
+                  Prendre en photo ou choisir un fichier
+                </span>
+                <span className="text-[14px] font-semibold text-muted">Ticket, facture ou reçu · photo ou PDF</span>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="sr-only"
+                  disabled={isCompressing}
+                  onChange={handleProofChange}
+                />
+              </label>
             )}
-          </CardContent>
-        </Card>
+            {isCompressing && (
+              <p role="status" className="text-center text-[14px] font-bold text-muted">
+                Compression de l'image en cours…
+              </p>
+            )}
+            {errorBanner}
+          </div>
+          <StepNav>
+            <Button variant="neutral" className={navBtn} onClick={handleBack}>
+              Retour
+            </Button>
+            <Button variant="primary" className={navBtn} onClick={handleNext} disabled={isCompressing}>
+              Suivant
+            </Button>
+          </StepNav>
+        </>
       )}
 
       {/* Étape 5 : Récapitulatif et validation */}
       {currentStep === 5 && (
-        <Card className="rounded-3xl border shadow-md">
-          <CardContent className="p-6 space-y-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Récapitulatif avant validation
-            </span>
-
-            <div className="bg-muted/50 rounded-2xl p-4 space-y-2.5 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Chef déclarant :</span>
-                <span className="font-bold text-foreground">
-                  {profile.first_name} {profile.last_name}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Unité :</span>
-                <span className="font-semibold text-foreground">{unit.name}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Montant :</span>
-                <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">
-                  {formatCurrency(parseAmount(amountInput) || 0)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Motif :</span>
-                <span className="font-semibold text-foreground">
-                  {isAutre ? `Autre (${customCategory})` : selectedCatObj?.name}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Paiement :</span>
-                <Badge
-                  variant={paymentMethod === 'personal_money' ? 'warning' : 'secondary'}
+        <>
+          <div className="flex flex-1 flex-col gap-3">
+            <dl className="m-0 flex flex-col rounded-[22px] border-2.5 border-line bg-surface px-4 py-1.5 shadow-pop-md">
+              {[
+                { k: 'Chef', v: <span className="text-[16px] font-bold">{`${profile.first_name} ${profile.last_name}`.trim()}</span> },
+                { k: 'Unité', v: <span className="text-[16px] font-bold">{unit.name}</span> },
+                { k: 'Montant', v: <span className="whitespace-nowrap text-[24px] font-extrabold text-success min-[360px]:text-[28px]">{amountLabel}</span> },
+                { k: 'Motif', v: <span className="text-[16px] font-bold">{motifLabel}</span> },
+                {
+                  k: 'Paiement',
+                  v: (
+                    <Badge variant={paymentMethod === 'personal_money' ? 'blue' : 'green'} className="text-[13px]">
+                      {paymentMethod === 'personal_money' ? 'Argent perso' : "Argent de l'unité"}
+                    </Badge>
+                  ),
+                },
+              ].map((row, i) => (
+                <div
+                  key={row.k}
+                  className={cn('flex items-center justify-between gap-3 py-2.5', i > 0 && 'border-t-2 border-divider')}
                 >
-                  {paymentMethod === 'personal_money' ? 'Argent perso' : "Argent de l'unité"}
-                </Badge>
-              </div>
-            </div>
+                  <dt className="shrink-0 text-[14px] font-semibold text-muted">{row.k}</dt>
+                  <dd className="m-0 min-w-0 break-words text-right">{row.v}</dd>
+                </div>
+              ))}
+            </dl>
 
-            {/* Date modifiable */}
-            <div>
-              <label htmlFor="expense-date" className="block text-xs font-bold text-muted-foreground mb-1">
-                Date de la dépense :
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="expense-date" className="text-[14px] font-bold">
+                Date de la dépense
               </label>
               <Input
                 id="expense-date"
@@ -615,79 +637,41 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
                 min={activePeriod?.start_date || '2026-09-01'}
                 max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setDate(e.target.value)}
-                className="font-medium"
+                className="min-w-0 rounded-[14px] font-medium"
               />
             </div>
 
-            {/* Commentaire facultatif n'apparaît qu'à cette étape */}
-            <div>
-              <label htmlFor="expense-comment" className="block text-xs font-bold text-muted-foreground mb-1">
-                Commentaire facultatif :
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="expense-comment" className="text-[14px] font-bold">
+                Commentaire (facultatif)
               </label>
-              <Input
+              <Textarea
                 id="expense-comment"
-                type="text"
+                rows={2}
                 maxLength={300}
-                placeholder="Ex : Remplace le matériel cassé au dernier jeu"
+                placeholder="Ex : courses pour le week-end des 14 et 15 novembre"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
+                className="resize-none rounded-[14px] font-medium"
               />
             </div>
-          </CardContent>
-        </Card>
+            {errorBanner}
+          </div>
+          <StepNav wide>
+            <Button variant="neutral" className={navBtn} onClick={handleBack} disabled={isSubmitting}>
+              Retour
+            </Button>
+            <Button
+              variant="primary"
+              className={cn(navBtn, 'whitespace-normal leading-tight')}
+              onClick={handleSubmit}
+              isLoading={isSubmitting}
+            >
+              Valider et envoyer
+            </Button>
+          </StepNav>
+        </>
       )}
-
-      {/* Boutons de navigation (Suivant / Précédent / Valider) */}
-      <div className="mt-6 flex items-center justify-between space-x-3">
-        {currentStep > 1 ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            onClick={handleBack}
-            disabled={isSubmitting}
-            className="flex-1"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="lg"
-            onClick={onCancel}
-            className="flex-1 text-muted-foreground"
-          >
-            Annuler
-          </Button>
-        )}
-
-        {currentStep < 5 ? (
-          <Button
-            type="button"
-            variant="default"
-            size="lg"
-            onClick={handleNext}
-            className="flex-1"
-          >
-            Suivant
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="default"
-            size="lg"
-            onClick={handleSubmit}
-            isLoading={isSubmitting}
-            disabled={isSubmitting}
-            className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold"
-          >
-            Valider et envoyer
-          </Button>
-        )}
-      </div>
     </div>
   );
 };

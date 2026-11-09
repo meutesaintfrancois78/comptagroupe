@@ -1,13 +1,4 @@
 import React, { useState } from 'react';
-import {
-  Receipt,
-  Users,
-  Tags,
-  Calendar,
-  Download,
-  Shield,
-  Layers,
-} from 'lucide-react';
 import { Expense, ExpenseCategory, Unit, Profile, Period } from '@/types/database';
 import { AdminExpenseTable } from './AdminExpenseTable';
 import { AdminUserManagement } from './AdminUserManagement';
@@ -15,6 +6,8 @@ import { AdminUnitCategoryManager } from './AdminUnitCategoryManager';
 import { AdminPeriodManager } from './AdminPeriodManager';
 import { AdminExportModal } from './AdminExportModal';
 import { generateAndDownloadReceiptsZip } from '@/lib/exportZip';
+import { Banner } from '@/components/ui/feedback';
+import { cn } from '@/lib/utils';
 
 interface AdminDashboardProps {
   expenses: Expense[];
@@ -28,6 +21,15 @@ interface AdminDashboardProps {
   onRefresh: () => void;
 }
 
+type AdminTab = 'expenses' | 'users' | 'units_cats' | 'periods';
+
+const TABS: { id: AdminTab; label: string }[] = [
+  { id: 'expenses', label: 'Dépenses' },
+  { id: 'users', label: 'Comptes' },
+  { id: 'units_cats', label: 'Unités et catégories' },
+  { id: 'periods', label: 'Périodes et clôture' },
+];
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   expenses,
   units,
@@ -39,9 +41,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onSelectPeriod,
   onRefresh,
 }) => {
-  const [activeTab, setActiveTab] = useState<'expenses' | 'users' | 'units_cats' | 'periods'>('expenses');
+  const [activeTab, setActiveTab] = useState<AdminTab>('expenses');
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false);
+  const [csvExpenses, setCsvExpenses] = useState<Expense[]>([]);
   const [isExportingZip, setIsExportingZip] = useState(false);
+  const [zipWarning, setZipWarning] = useState<string | null>(null);
 
   const selectedPeriodObj = periods.find((p) => p.id === selectedPeriodId);
 
@@ -50,125 +54,95 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleExportZip = async () => {
     setIsExportingZip(true);
+    setZipWarning(null);
     try {
       const pName = selectedPeriodObj ? selectedPeriodObj.name.replace(/\s+/g, '_') : 'Toutes';
-      await generateAndDownloadReceiptsZip(periodExpenses, `Justificatifs_${pName}.zip`);
+      const report = await generateAndDownloadReceiptsZip(periodExpenses, `Justificatifs_${pName}.zip`);
+      const n = report.missing.length;
+      if (n > 0) {
+        setZipWarning(
+          n > 1
+            ? `${n} justificatifs n'ont pas pu être ajoutés au ZIP (remplacés par une note .txt). Réessaie plus tard.`
+            : `1 justificatif n'a pas pu être ajouté au ZIP (remplacé par une note .txt). Réessaie plus tard.`
+        );
+      }
     } finally {
       setIsExportingZip(false);
     }
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto py-2">
-      {/* Barre d'onglets administrative */}
-      <div role="tablist" aria-label="Sections d'administration" className="flex border-b overflow-x-auto no-scrollbar space-x-1 sm:space-x-2">
-        <button
-          role="tab"
-          aria-selected={activeTab === 'expenses'}
-          aria-label={`Dépenses (${periodExpenses.length})`}
-          onClick={() => setActiveTab('expenses')}
-          className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'expenses'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          <span>Dépenses ({periodExpenses.length})</span>
-        </button>
+    <div className="mx-auto flex w-full min-w-0 max-w-admin flex-col">
+      {/* Les 4 onglets : grille 2 × 2 sur téléphone, une rangée de 4 dès 768 px */}
+      <nav
+        aria-label="Sections admin"
+        className="grid grid-cols-2 gap-1.5 border-b-2 border-divider pb-2.5 md:grid-cols-4"
+      >
+        {TABS.map((t) => {
+          const current = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              aria-current={current ? 'page' : undefined}
+              onClick={() => setActiveTab(t.id)}
+              className={cn(
+                'min-h-[44px] rounded-lg border-2 border-line px-2 py-1 text-[13px] font-extrabold leading-tight',
+                current ? 'bg-green text-on-color' : 'bg-surface text-ink hover:bg-surface2'
+              )}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
 
-        <button
-          role="tab"
-          aria-selected={activeTab === 'users'}
-          aria-label={`Comptes et rôles (${profiles.length})`}
-          onClick={() => setActiveTab('users')}
-          className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'users'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Comptes & Rôles ({profiles.length})</span>
-        </button>
+      <div className="flex min-w-0 flex-col gap-3 pb-5 pt-3.5">
+        {activeTab === 'expenses' && (
+          <>
+            {zipWarning && <Banner tone="warning">{zipWarning}</Banner>}
+            <AdminExpenseTable
+              expenses={periodExpenses}
+              units={units}
+              categories={categories}
+              periods={periods}
+              profiles={profiles}
+              selectedPeriodId={selectedPeriodId}
+              onSelectPeriod={onSelectPeriod}
+              onRefresh={onRefresh}
+              onExportCsv={(filtered) => {
+                setCsvExpenses(filtered ?? periodExpenses);
+                setIsExportCsvOpen(true);
+              }}
+              onExportZip={handleExportZip}
+              isExportingZip={isExportingZip}
+            />
+          </>
+        )}
 
-        <button
-          role="tab"
-          aria-selected={activeTab === 'units_cats'}
-          aria-label="Unités et catégories de dépenses"
-          onClick={() => setActiveTab('units_cats')}
-          className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'units_cats'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Layers className="w-4 h-4" />
-          <span>Unités & Catégories</span>
-        </button>
+        {activeTab === 'users' && (
+          <AdminUserManagement
+            profiles={profiles}
+            units={units}
+            currentAdminId={currentAdminId}
+            onRefresh={onRefresh}
+          />
+        )}
 
-        <button
-          role="tab"
-          aria-selected={activeTab === 'periods'}
-          aria-label="Gestion des périodes et clôture"
-          onClick={() => setActiveTab('periods')}
-          className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
-            activeTab === 'periods'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>Périodes & Clôture</span>
-        </button>
+        {activeTab === 'units_cats' && (
+          <AdminUnitCategoryManager units={units} categories={categories} onRefresh={onRefresh} />
+        )}
+
+        {activeTab === 'periods' && (
+          <AdminPeriodManager periods={periods} expenses={expenses} onRefresh={onRefresh} />
+        )}
       </div>
 
-      {/* Contenu selon onglet actif */}
-      {activeTab === 'expenses' && (
-        <AdminExpenseTable
-          expenses={periodExpenses}
-          units={units}
-          categories={categories}
-          periods={periods}
-          profiles={profiles}
-          selectedPeriodId={selectedPeriodId}
-          onSelectPeriod={onSelectPeriod}
-          onRefresh={onRefresh}
-          onExportCsv={() => setIsExportCsvOpen(true)}
-          onExportZip={handleExportZip}
-        />
-      )}
-
-      {activeTab === 'users' && (
-        <AdminUserManagement
-          profiles={profiles}
-          units={units}
-          currentAdminId={currentAdminId}
-          onRefresh={onRefresh}
-        />
-      )}
-
-      {activeTab === 'units_cats' && (
-        <AdminUnitCategoryManager
-          units={units}
-          categories={categories}
-          onRefresh={onRefresh}
-        />
-      )}
-
-      {activeTab === 'periods' && (
-        <AdminPeriodManager
-          periods={periods}
-          expenses={expenses}
-          onRefresh={onRefresh}
-        />
-      )}
-
-      {/* Modale d'export CSV modulaire */}
+      {/* Export CSV : colonnes au choix, sur les dépenses filtrées */}
       <AdminExportModal
         isOpen={isExportCsvOpen}
         onClose={() => setIsExportCsvOpen(false)}
-        expenses={periodExpenses}
+        expenses={csvExpenses}
         periodName={selectedPeriodObj?.name}
       />
     </div>

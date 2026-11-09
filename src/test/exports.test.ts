@@ -70,9 +70,26 @@ describe('Exports TDD (CSV & ZIP)', () => {
     ];
 
     const csv = generateCsvContent(maliciousExpenses, ['comment']);
-    // Formulas starting with =, +, -, @ must be neutralized
-    expect(csv).toContain("'=1+1 TEST audit Claude - a supprimer");
-    expect(csv).toContain("'+cmd");
-    expect(csv).toContain("'@SUM(1+1)");
+    // Les caractères qui lancent une formule (=, +, -, @) sont retirés en tête de champ
+    const lines = csv.replace('\uFEFF', '').split('\r\n');
+    expect(lines[1]).toBe('1+1 TEST audit Claude - a supprimer');
+    expect(lines[2]).toBe('"cmd|""/C calc""!A0"');
+    expect(lines[3]).toBe('SUM(1+1)');
+    expect(csv).not.toContain("'=");
+    expect(csv).not.toContain("'+");
+    expect(csv).not.toContain("'@");
+  });
+
+  it('should strip repeated or mixed leading formula characters', () => {
+    const csv = generateCsvContent(
+      [
+        { ...sampleExpenses[0], comment: '\t=-+@HYPERLINK("x")' },
+        { ...sampleExpenses[0], id: 'e5', comment: '-12,50 rendu' },
+      ],
+      ['comment']
+    );
+    const lines = csv.replace('\uFEFF', '').split('\r\n');
+    expect(lines[1]).toBe('"HYPERLINK(""x"")"');
+    expect(lines[2]).toBe('12,50 rendu');
   });
 });

@@ -2,62 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Jetons de la maquette « Compta Groupe Saint-Martin » (doc de passation, section Design tokens).
+ * Valeurs en triplets RGB pour garder les modificateurs d'opacité de Tailwind (bg-green/40).
+ * Le mode suit prefers-color-scheme, sans réglage dans l'appli.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 142 76% 24%; /* Vert scout forêt #0f5132 / #14532d */
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 140 30% 95%;
-    --secondary-foreground: 142 76% 20%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 142 50% 92%;
-    --accent-foreground: 142 76% 20%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 142 76% 24%;
-    --radius: 0.75rem;
+    /* Couleurs fixes, identiques dans les deux modes */
+    --green: 61 220 132;      /* #3DDC84 vert principal */
+    --blue: 140 203 255;      /* #8CCBFF bleu clair secondaire */
+    --yellow: 255 216 77;     /* #FFD84D attente, avertissement */
+    --red: 255 138 138;       /* #FF8A8A compte suspendu, purge */
+    --on-color: 20 20 31;     /* #14141F texte et contours sur fond coloré */
+    --white: 255 255 255;
+
+    /* Couleurs qui changent selon le mode : mode clair */
+    --bg: 255 255 255;
+    --surface: 255 255 255;
+    --surface2: 241 241 244;
+    --field: 255 255 255;
+    --ink: 20 20 31;
+    --muted: 74 74 94;
+    --line: 20 20 31;
+    --divider: 211 211 220;
+    --shadow: 20 20 31;
+    --link: 31 95 168;
+    --success: 15 122 66;
+    --error: 180 35 24;
+    --error-bg: 255 233 231;
+    --backdrop: rgba(20, 20, 31, 0.55);
+    color-scheme: light;
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --background: 150 20% 6%;
-      --foreground: 210 40% 98%;
-      --card: 150 20% 9%;
-      --card-foreground: 210 40% 98%;
-      --popover: 150 20% 9%;
-      --popover-foreground: 210 40% 98%;
-      --primary: 142 70% 45%;
-      --primary-foreground: 142 80% 10%;
-      --secondary: 150 20% 15%;
-      --secondary-foreground: 210 40% 98%;
-      --muted: 150 15% 15%;
-      --muted-foreground: 215 20.2% 65.1%;
-      --accent: 150 20% 16%;
-      --accent-foreground: 210 40% 98%;
-      --destructive: 0 62.8% 45%;
-      --destructive-foreground: 210 40% 98%;
-      --border: 150 15% 18%;
-      --input: 150 15% 18%;
-      --ring: 142 70% 45%;
+      --bg: 11 11 15;
+      --surface: 23 24 31;
+      --surface2: 36 37 46;
+      --field: 11 11 15;
+      --ink: 245 245 247;
+      --muted: 169 171 186;
+      --line: 245 245 247;
+      --divider: 58 60 72;
+      --shadow: 140 203 255;
+      --link: 140 203 255;
+      --success: 61 220 132;
+      --error: 255 138 138;
+      --error-bg: 58 21 24;
+      --backdrop: rgba(0, 0, 0, 0.72);
+      color-scheme: dark;
     }
   }
 
   * {
-    @apply border-border;
+    @apply border-line;
     -webkit-tap-highlight-color: transparent;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-bg text-ink font-sans;
     touch-action: manipulation;
+  }
+
+  /* Champs à 16 px minimum : pas de zoom automatique sur iPhone */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
+  :focus-visible {
+    outline: 3px solid rgb(var(--link));
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
   }
 }

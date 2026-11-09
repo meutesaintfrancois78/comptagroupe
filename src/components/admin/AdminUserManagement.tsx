@@ -1,25 +1,42 @@
 import React, { useState } from 'react';
-import {
-  UserCheck,
-  UserX,
-  Shield,
-  ShieldAlert,
-  UserMinus,
-  UserPlus,
-  RefreshCw,
-  AlertCircle,
-} from 'lucide-react';
 import { Profile, Unit, UserRole, AccountStatus } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Field, Select } from '@/components/ui/input';
+import { Dialog } from '@/components/ui/dialog';
+import { Banner } from '@/components/ui/feedback';
 import { supabase } from '@/lib/supabase';
 import { validateProfileUnitAssignment } from '@/lib/permissions';
+import { acceptUnitChangeRequest, rejectUnitChangeRequest } from './PendingValidationBanner';
 
 interface AdminUserManagementProps {
   profiles: Profile[];
   units: Unit[];
   currentAdminId: string;
   onRefresh: () => void;
+}
+
+const STATUS_LABEL: Record<AccountStatus, string> = {
+  active: 'Actif',
+  pending: 'En attente',
+  deactivated: 'Désactivé',
+  rejected: 'Refusé',
+};
+
+const STATUS_BADGE: Record<AccountStatus, 'green' | 'yellow' | 'red'> = {
+  active: 'green',
+  pending: 'yellow',
+  deactivated: 'red',
+  rejected: 'red',
+};
+
+const fullName = (p: Profile) => `${p.first_name} ${p.last_name}`.trim();
+
+interface SheetForm {
+  primary: string;
+  secondary: string;
+  role: UserRole;
+  status: AccountStatus;
 }
 
 export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
@@ -29,416 +46,299 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   onRefresh,
 }) => {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [form, setForm] = useState<SheetForm | null>(null);
+  const [sheetError, setSheetError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isHandlingRequest, setIsHandlingRequest] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const activeAdminsCount = profiles.filter(
-    (p) => p.role === 'admin' && p.status === 'active'
-  ).length;
+  const activeAdminsCount = profiles.filter((p) => p.role === 'admin' && p.status === 'active').length;
+  const unitName = (id: string | null | undefined) => units.find((u) => u.id === id)?.name;
 
-  const handleUpdateStatus = async (profileId: string, status: AccountStatus) => {
+  const unitsLabel = (p: Profile) => {
+    const primary = unitName(p.primary_unit_id) || (p.role === 'admin' ? 'Non rattaché (Groupe)' : 'Non rattaché');
+    const secondary = p.secondary_unit_id ? unitName(p.secondary_unit_id) : null;
+    return secondary ? `${primary} + ${secondary}` : primary;
+  };
+
+  const openSheet = (p: Profile) => {
+    setSelectedUser(p);
+    setSheetError(null);
+    setForm({
+      primary: p.primary_unit_id || '',
+      secondary: p.secondary_unit_id || '',
+      role: p.role,
+      status: p.status,
+    });
+  };
+
+  const closeSheet = () => {
+    setSelectedUser(null);
+    setForm(null);
+    setSheetError(null);
+  };
+
+  const updateForm = (patch: Partial<SheetForm>) => {
+    setSheetError(null);
+    setForm((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
+
+  // Enregistrer la fiche : unités, rôle et statut, avec le garde-fou du dernier admin
+  const handleSave = async () => {
+    if (!selectedUser || !form) return;
+    setSheetError(null);
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const target = profiles.find((p) => p.id === profileId);
-    if (target?.role === 'admin' && status !== 'active' && activeAdminsCount <= 1) {
-      setErrorMsg('Action impossible : le système doit conserver au moins un administrateur actif.');
+    const target = selectedUser;
+    const name = fullName(target);
+
+    // Garde-fou : le dernier admin actif ne peut ni perdre son rôle ni changer de statut
+    const isLastActiveAdmin = target.role === 'admin' && target.status === 'active' && activeAdminsCount <= 1;
+    if (isLastActiveAdmin && (form.role !== 'admin' || form.status !== 'active')) {
+      setSheetError(
+        `Impossible : ${name} est le dernier admin actif. Nomme un autre admin avant de changer son rôle ou son statut.`
+      );
       return;
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status })
-      .eq('id', profileId);
-
-    if (error) {
-      setErrorMsg(error.message || 'Erreur lors de la modification du statut.');
-    } else {
-      setSuccessMsg('Statut mis à jour avec succès.');
-      onRefresh();
+    const validation = validateProfileUnitAssignment(form.role, form.primary);
+    if (!validation.isValid) {
+      setSheetError(validation.error || 'Unité principale obligatoire pour les chefs.');
+      return;
     }
-  };
-
-  const handleToggleAdminRole = async (profile: Profile) => {
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    const newRole: UserRole = profile.role === 'admin' ? 'chef' : 'admin';
-
-    // Garde-fou dernier admin
-    if (profile.role === 'admin' && activeAdminsCount <= 1) {
-      setErrorMsg('Action impossible : le système doit conserver au moins un administrateur actif.');
+    const secondary = form.secondary || null;
+    if (secondary && secondary === validation.unitId) {
+      setSheetError("La 2ᵉ unité doit être différente de l'unité principale.");
       return;
     }
 
     if (
-      newRole === 'admin' &&
-      !window.confirm(`Confirmer la promotion de ${profile.first_name} ${profile.last_name} en tant qu'administrateur ?`)
+      form.role === 'admin' &&
+      target.role !== 'admin' &&
+      !window.confirm(`Confirmer la promotion de ${name} en tant qu'administrateur ?`)
     ) {
       return;
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', profile.id);
+    // N'envoie que ce qui change
+    const payload: Partial<Pick<Profile, 'role' | 'status' | 'primary_unit_id' | 'secondary_unit_id'>> = {};
+    if (form.role !== target.role) payload.role = form.role;
+    if (form.status !== target.status) payload.status = form.status;
+    if (validation.unitId !== (target.primary_unit_id || null)) payload.primary_unit_id = validation.unitId;
+    if (secondary !== (target.secondary_unit_id || null)) payload.secondary_unit_id = secondary;
 
-    if (error) {
-      setErrorMsg(error.message || 'Erreur lors du changement de rôle.');
-    } else {
-      setSuccessMsg(
-        newRole === 'admin'
-          ? `${profile.first_name} a été promu administrateur.`
-          : `${profile.first_name} est désormais chef d'unité.`
-      );
-      onRefresh();
-    }
-  };
-
-  const handleUpdateUnits = async (
-    profileId: string,
-    primaryUnitId: string | null,
-    secondaryUnitId: string | null
-  ) => {
-    setErrorMsg(null);
-    const targetUser = profiles.find((p) => p.id === profileId);
-    const validation = validateProfileUnitAssignment(targetUser?.role || 'chef', primaryUnitId);
-    if (!validation.isValid) {
-      setErrorMsg(validation.error || "Unité principale obligatoire pour les chefs.");
+    if (Object.keys(payload).length === 0) {
+      closeSheet();
       return;
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        primary_unit_id: validation.unitId,
-        secondary_unit_id: secondaryUnitId || null,
-      })
-      .eq('id', profileId);
-
-    if (error) {
-      setErrorMsg(error.message || "Erreur lors de l'affectation d'unité.");
-    } else {
-      setSuccessMsg('Unités mises à jour.');
-      setSelectedUser(null);
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from('profiles').update(payload).eq('id', target.id);
+      if (error) {
+        setSheetError(error.message || 'Erreur lors de la mise à jour du compte.');
+        return;
+      }
+      setSuccessMsg(`Compte de ${name} mis à jour.`);
+      closeSheet();
       onRefresh();
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleAcceptUnitChange = async (profile: Profile) => {
-    if (!profile.requested_unit_id) return;
-    setErrorMsg(null);
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        primary_unit_id: profile.requested_unit_id,
-        requested_unit_id: null,
-      })
-      .eq('id', profile.id);
-
-    if (error) {
-      setErrorMsg(error.message || "Erreur lors du transfert d'unité.");
-    } else {
-      setSuccessMsg(`Mutation de ${profile.first_name} validée avec succès.`);
+  // Demande de changement d'unité, traitée depuis la fiche
+  const handleUnitRequest = async (accept: boolean) => {
+    if (!selectedUser) return;
+    setSheetError(null);
+    setIsHandlingRequest(true);
+    try {
+      const { error } = accept
+        ? await acceptUnitChangeRequest(selectedUser)
+        : await rejectUnitChangeRequest(selectedUser);
+      if (error) {
+        setSheetError(error);
+        return;
+      }
+      setSuccessMsg(
+        accept
+          ? `Changement d'unité de ${fullName(selectedUser)} validé.`
+          : `Demande de changement d'unité de ${fullName(selectedUser)} refusée.`
+      );
+      closeSheet();
       onRefresh();
+    } finally {
+      setIsHandlingRequest(false);
     }
   };
 
-  const handleRejectUnitChange = async (profile: Profile) => {
-    setErrorMsg(null);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ requested_unit_id: null })
-      .eq('id', profile.id);
-
-    if (error) {
-      setErrorMsg(error.message || 'Erreur lors du refus de mutation.');
-    } else {
-      setSuccessMsg(`Demande de mutation de ${profile.first_name} refusée.`);
-      onRefresh();
-    }
-  };
-
+  const statusOptions: AccountStatus[] =
+    selectedUser?.status === 'rejected'
+      ? ['active', 'pending', 'deactivated', 'rejected']
+      : ['active', 'pending', 'deactivated'];
 
   return (
-    <div className="space-y-4">
-      {errorMsg && (
-        <div className="p-3 bg-destructive/15 text-destructive rounded-2xl text-xs font-semibold flex items-center space-x-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+    <div className="flex flex-col gap-2.5">
+      {errorMsg && <Banner tone="error">{errorMsg}</Banner>}
+      {successMsg && <Banner tone="notice">{successMsg}</Banner>}
 
-      {successMsg && (
-        <div className="p-3 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 rounded-2xl text-xs font-semibold">
-          {successMsg}
-        </div>
-      )}
-
-      <div className="bg-card rounded-3xl border p-5 shadow-sm flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-extrabold text-foreground">
-            Gestion des Comptes & Rôles
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Validation, affectation d'unités (1ère ou 2ème unité) et promotion d'admins
-          </p>
-        </div>
-        <Badge variant="outline" className="text-xs font-bold px-3 py-1">
-          {activeAdminsCount} admin{activeAdminsCount > 1 ? 's' : ''} actif{activeAdminsCount > 1 ? 's' : ''}
-        </Badge>
-      </div>
-
-      <div className="bg-card rounded-2xl border shadow-sm divide-y">
+      {/* Comptes : une colonne, deux dès 1024 px */}
+      <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
         {profiles.map((p) => {
-          const primaryUnitName =
-            units.find((u) => u.id === p.primary_unit_id)?.name ||
-            (p.role === 'admin' ? 'Non rattaché (Groupe)' : 'Non rattaché');
-          const secondaryUnitName = p.secondary_unit_id
-            ? units.find((u) => u.id === p.secondary_unit_id)?.name
-            : null;
-          const isAdmin = p.role === 'admin';
+          const name = fullName(p);
           const isMe = p.id === currentAdminId;
-
+          const requested = p.requested_unit_id ? unitName(p.requested_unit_id) || 'unité inconnue' : null;
           return (
-            <div
+            <li
               key={p.id}
-              className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/30 transition-colors"
+              className="flex min-w-0 items-center gap-3 rounded-[18px] border-2.5 border-line bg-surface px-3.5 py-3"
             >
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-base text-foreground">
-                    {p.first_name} {p.last_name}
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <div className="flex min-w-0 flex-col">
+                  <span className="break-words text-[16px] font-extrabold leading-tight">
+                    {name}
+                    {isMe && <span className="text-[13px] font-semibold text-muted"> (toi)</span>}
                   </span>
-                  {isAdmin ? (
-                    <Badge variant="success" className="text-[10px]">
-                      Admin
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-[10px]">
-                      Chef
-                    </Badge>
-                  )}
-                  {p.status === 'pending' && (
-                    <Badge variant="warning" className="text-[10px]">
-                      En attente
-                    </Badge>
-                  )}
-                  {p.status === 'deactivated' && (
-                    <Badge variant="destructive" className="text-[10px]">
-                      Désactivé
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="text-xs text-muted-foreground font-mono mt-0.5">
-                  {p.email || 'Email non renseigné'}
-                </div>
-
-                <div className="text-xs text-muted-foreground mt-1 space-x-2">
-                  <span>
-                    Unité principale : <strong className="text-foreground">{primaryUnitName}</strong>
+                  <span className="break-all text-[13px] font-semibold text-muted">
+                    {p.email || 'Email non renseigné'}
                   </span>
-                  {secondaryUnitName && (
-                    <span>
-                      • 2e unité : <strong className="text-foreground">{secondaryUnitName}</strong>
-                    </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant={p.role === 'admin' ? 'green' : 'blue'}>{p.role === 'admin' ? 'Admin' : 'Chef'}</Badge>
+                  <Badge variant={STATUS_BADGE[p.status]}>{STATUS_LABEL[p.status]}</Badge>
+                  <Badge variant="dashed" className="whitespace-normal font-bold">
+                    {unitsLabel(p)}
+                  </Badge>
+                  {requested && (
+                    <Badge variant="yellow" className="whitespace-normal">
+                      Demande : {requested}
+                    </Badge>
                   )}
                 </div>
-
-                {p.requested_unit_id && (
-                  <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
-                    <div className="text-xs text-amber-800 dark:text-amber-300">
-                      📢 <strong>Demande de mutation :</strong> souhaite passer à{' '}
-                      <strong>{units.find((u) => u.id === p.requested_unit_id)?.name || 'Inconnue'}</strong>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleAcceptUnitChange(p)}
-                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-7 px-2 font-bold"
-                      >
-                        Accepter
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRejectUnitChange(p)}
-                        className="text-xs h-7 px-2 text-destructive border-destructive/30"
-                      >
-                        Refuser
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
-
-              {/* Actions d'administration */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Modifier les unités */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setSelectedUser(p)}
-                  className="text-xs"
-                >
-                  Unités
-                </Button>
-
-                {/* Validation / Refus si en attente */}
-                {p.status === 'pending' && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => handleUpdateStatus(p.id, 'active')}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs"
-                    >
-                      <UserCheck className="w-3.5 h-3.5 mr-1" />
-                      Accepter
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleUpdateStatus(p.id, 'rejected')}
-                      className="text-xs"
-                    >
-                      <UserX className="w-3.5 h-3.5 mr-1" />
-                      Refuser
-                    </Button>
-                  </>
-                )}
-
-                {/* Activer / Désactiver si actif */}
-                {p.status === 'active' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleUpdateStatus(p.id, 'deactivated')}
-                    disabled={isAdmin && activeAdminsCount <= 1}
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                  >
-                    Désactiver
-                  </Button>
-                )}
-
-                {p.status === 'deactivated' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleUpdateStatus(p.id, 'active')}
-                    className="text-xs text-emerald-700 border-emerald-500/30"
-                  >
-                    Réactiver
-                  </Button>
-                )}
-
-                {/* Promouvoir / Rétrograder Admin */}
-                <Button
-                  size="sm"
-                  variant={isAdmin ? 'outline' : 'secondary'}
-                  onClick={() => handleToggleAdminRole(p)}
-                  disabled={isAdmin && activeAdminsCount <= 1}
-                  title={
-                    isAdmin && activeAdminsCount <= 1
-                      ? 'Impossible de retirer le dernier admin'
-                      : undefined
-                  }
-                  className="text-xs"
-                >
-                  {isAdmin ? (
-                    <>
-                      <ShieldAlert className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                      Retirer Admin
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-3.5 h-3.5 mr-1 text-primary" />
-                      Nommer Admin
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+              <Button
+                variant="neutral"
+                size="sm"
+                onClick={() => openSheet(p)}
+                aria-label={`Modifier le compte de ${name}`}
+                className="min-h-[44px] shrink-0 rounded-lg border-2 px-3 text-[14px]"
+              >
+                Modifier
+              </Button>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      {/* Modal d'ajustement des unités (1ère et 2ème unité) */}
-      {selectedUser && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={() => setSelectedUser(null)}
-        >
-          <div
-            className="w-full max-w-md bg-card p-6 rounded-3xl border shadow-2xl space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-foreground">
-              Affectation d'unité : {selectedUser.first_name} {selectedUser.last_name}
-            </h3>
+      {/* Fiche du compte */}
+      <Dialog
+        isOpen={Boolean(selectedUser && form)}
+        onClose={closeSheet}
+        title={selectedUser ? fullName(selectedUser) : undefined}
+        description={
+          selectedUser ? (
+            <>
+              <span className="block break-all">{selectedUser.email || 'Email non renseigné'}</span>
+              <span className="block">Fiche du compte</span>
+            </>
+          ) : undefined
+        }
+      >
+        {selectedUser && form && (
+          <div className="flex flex-col gap-3">
+            {selectedUser.requested_unit_id && (
+              <div className="flex flex-col gap-2.5 rounded-[14px] border-2 border-on-color bg-yellow p-3 text-on-color">
+                <p className="text-[14px] font-bold leading-snug">
+                  Demande de changement d'unité : {unitName(selectedUser.primary_unit_id) || 'Non rattaché'} →{' '}
+                  {unitName(selectedUser.requested_unit_id) || 'unité inconnue'}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="primary"
+                    onClick={() => handleUnitRequest(true)}
+                    isLoading={isHandlingRequest}
+                    className="min-h-[44px] rounded-lg px-3 text-[15px] shadow-none"
+                  >
+                    Valider
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleUnitRequest(false)}
+                    disabled={isHandlingRequest}
+                    className="min-h-[44px] rounded-lg px-3 text-[15px]"
+                  >
+                    Refuser
+                  </Button>
+                </div>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-xs font-bold text-muted-foreground mb-1">
-                Unité principale {selectedUser.role === 'admin' ? '(facultative pour un administrateur)' : '(obligatoire)'}
-              </label>
-              <select
-                id="edit-primary-unit"
-                defaultValue={selectedUser.primary_unit_id || ''}
-                className="h-10 w-full text-xs font-medium rounded-lg border border-input bg-background px-3 py-1"
+            <Field label="Unité principale" htmlFor="fiche-primary-unit">
+              <Select
+                id="fiche-primary-unit"
+                value={form.primary}
+                onChange={(e) => updateForm({ primary: e.target.value })}
               >
-                {selectedUser.role === 'admin' && (
-                  <option value="">Aucune unité (Non rattaché - Groupe)</option>
-                )}
+                <option value="">Non rattaché (Groupe)</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </Field>
 
-            <div>
-              <label className="block text-xs font-bold text-muted-foreground mb-1">
-                Deuxième unité (facultative - chef rattaché à 2 unités)
-              </label>
-              <select
-                id="edit-secondary-unit"
-                defaultValue={selectedUser.secondary_unit_id || ''}
-                className="h-10 w-full text-xs font-medium rounded-lg border border-input bg-background px-3 py-1"
+            <Field label="2ᵉ unité" htmlFor="fiche-secondary-unit">
+              <Select
+                id="fiche-secondary-unit"
+                value={form.secondary}
+                onChange={(e) => updateForm({ secondary: e.target.value })}
               >
-                <option value="">Aucune 2e unité</option>
+                <option value="">Aucune</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.name}
                   </option>
                 ))}
-              </select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Si une 2e unité est ajoutée, un sélecteur d'unité apparaîtra sur l'accueil du chef.
-              </p>
+              </Select>
+            </Field>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="Rôle" htmlFor="fiche-role">
+                <Select
+                  id="fiche-role"
+                  value={form.role}
+                  onChange={(e) => updateForm({ role: e.target.value as UserRole })}
+                >
+                  <option value="admin">Admin</option>
+                  <option value="chef">Chef</option>
+                </Select>
+              </Field>
+              <Field label="Statut" htmlFor="fiche-status">
+                <Select
+                  id="fiche-status"
+                  value={form.status}
+                  onChange={(e) => updateForm({ status: e.target.value as AccountStatus })}
+                >
+                  {statusOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_LABEL[s]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
             </div>
 
-            <div className="pt-3 flex justify-end space-x-2">
-              <Button size="sm" variant="outline" onClick={() => setSelectedUser(null)}>
-                Annuler
-              </Button>
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => {
-                  const pri = (document.getElementById('edit-primary-unit') as HTMLSelectElement).value;
-                  const sec = (document.getElementById('edit-secondary-unit') as HTMLSelectElement).value;
-                  handleUpdateUnits(selectedUser.id, pri, sec || null);
-                }}
-              >
-                Enregistrer
-              </Button>
-            </div>
+            {sheetError && <Banner tone="error">{sheetError}</Banner>}
+
+            <Button variant="primary" onClick={handleSave} isLoading={isSaving}>
+              Enregistrer
+            </Button>
           </div>
-        </div>
-      )}
+        )}
+      </Dialog>
     </div>
   );
 };

@@ -1,32 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { Download, X, Smartphone } from 'lucide-react';
+import React, { useState, useEffect, useId, useRef } from 'react';
+import { Share, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { IconTile } from '@/components/ui/feedback';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const DISMISS_KEY = 'pwa_install_dismissed';
+
+const readDismissed = (): string | null => {
+  try {
+    return localStorage.getItem(DISMISS_KEY);
+  } catch {
+    return null;
+  }
+};
+
+/** Carte « Installer Compta Saint-Martin », posée en bas de l'écran sur un voile */
 export const PWAInstallBanner: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descId = useId();
 
   useEffect(() => {
-    // Check if already in standalone mode
+    // Déjà installée : rien à proposer
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
     if (isStandalone) return;
 
-    // Check if dismissed recently
-    const dismissedTime = localStorage.getItem('pwa_install_dismissed');
+    // Refusée il y a moins de 7 jours
+    const dismissedTime = readDismissed();
     if (dismissedTime && Date.now() - parseInt(dismissedTime, 10) < 7 * 24 * 3600 * 1000) {
       return;
     }
 
-    // Android / Chromium beforeinstallprompt handler
+    // Android / Chromium : beforeinstallprompt
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -35,12 +50,12 @@ export const PWAInstallBanner: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
-    // iOS detection
+    // iOS : pas d'invite système, on montre la marche à suivre
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
-    if (isIosDevice && !isStandalone && !dismissedTime) {
+    if (isIosDevice && !dismissedTime) {
       setIsIOS(true);
-      // Delay showing banner slightly on iOS so it doesn't overlap loading
+      // Léger délai pour ne pas recouvrir le chargement
       const timer = setTimeout(() => setIsVisible(true), 3000);
       return () => {
         clearTimeout(timer);
@@ -53,8 +68,20 @@ export const PWAInstallBanner: React.FC = () => {
     };
   }, []);
 
+  const handleDismiss = () => {
+    setIsVisible(false);
+    try {
+      localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    } catch {
+      // stockage indisponible : la carte reviendra à la prochaine visite
+    }
+  };
+
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      handleDismiss();
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
@@ -63,57 +90,68 @@ export const PWAInstallBanner: React.FC = () => {
     setDeferredPrompt(null);
   };
 
-  const handleDismiss = () => {
-    setIsVisible(false);
-    localStorage.setItem('pwa_install_dismissed', Date.now().toString());
-  };
+  // Focus sur la carte à l'ouverture, Échap pour fermer
+  useEffect(() => {
+    if (!isVisible) return;
+    cardRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleDismiss();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isVisible]);
 
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-3 left-3 right-3 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md z-50 animate-in fade-in slide-in-from-bottom duration-300">
-      <div className="bg-scout-dark text-white p-4 rounded-2xl shadow-2xl border border-scout-light/30 flex items-start space-x-3.5">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-scout-500 text-white font-bold text-lg shadow-sm">
-          📱
-        </div>
-
-        <div className="flex-1 min-w-0 pr-1">
-          <h4 className="text-sm font-bold tracking-tight">Installer Compta Saint-Martin</h4>
-          <p className="text-xs text-emerald-100/80 mt-0.5 leading-snug">
-            {isIOS
-              ? "Pour installer : appuie sur Partager ⎋ puis 'Sur l'écran d'accueil' 📲"
-              : "Ajoute l'application à ton écran d'accueil pour un accès instantané et le mode hors-ligne."}
-          </p>
-
-          <div className="mt-3 flex items-center space-x-2">
-            {!isIOS && deferredPrompt && (
-              <Button
-                size="sm"
-                onClick={handleInstallClick}
-                className="bg-white text-scout-dark hover:bg-emerald-50 text-xs font-bold h-8 px-3.5 shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5 mr-1.5" />
-                Installer
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDismiss}
-              className="text-emerald-100 hover:text-white hover:bg-white/10 text-xs h-8 px-2.5"
-            >
-              Plus tard
-            </Button>
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-end p-3.5 pb-safe md:p-6"
+      style={{ background: 'var(--backdrop)' }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) handleDismiss();
+      }}
+    >
+      <div
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        tabIndex={-1}
+        className="flex w-full max-w-[440px] flex-col gap-3.5 rounded-3xl border-2.5 border-line bg-surface p-[18px] text-ink shadow-pop-md outline-none"
+      >
+        <div className="flex items-start gap-3.5">
+          <IconTile size={56} className="rounded-xl text-[30px] leading-none">
+            ⚜
+          </IconTile>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <h2 id={titleId} className="text-[19px] font-extrabold leading-[1.15]">
+              Installer Compta Saint-Martin
+            </h2>
+            <p id={descId} className="text-[14px] font-medium leading-[1.4] text-muted">
+              Ajoute l'appli à ton écran d'accueil pour déclarer une dépense en un geste.
+            </p>
           </div>
+          <button
+            type="button"
+            aria-label="Fermer"
+            onClick={handleDismiss}
+            className="-mr-2 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink hover:bg-surface2"
+          >
+            <X className="h-[22px] w-[22px]" strokeWidth={2.4} aria-hidden="true" />
+          </button>
         </div>
 
-        <button
-          onClick={handleDismiss}
-          className="text-emerald-200/60 hover:text-white p-1 rounded-lg transition-colors"
-          aria-label="Fermer"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {isIOS && (
+          <div className="flex items-center gap-2.5 rounded-[14px] bg-surface2 px-3 py-2.5 text-[13px] font-semibold leading-[1.35]">
+            <Share className="h-5 w-5 shrink-0" strokeWidth={2.2} aria-hidden="true" />
+            <span>Sur iPhone : touche Partager, puis « Sur l'écran d'accueil ».</span>
+          </div>
+        )}
+
+        <Button size="default" className="min-h-[52px] text-[17px]" onClick={handleInstallClick}>
+          {deferredPrompt ? 'Installer' : "J'ai compris"}
+        </Button>
       </div>
     </div>
   );

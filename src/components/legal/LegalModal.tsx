@@ -1,126 +1,134 @@
-import React, { useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+type LegalTab = 'cgu' | 'privacy';
 
 interface LegalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultTab?: 'cgu' | 'privacy';
+  defaultTab?: LegalTab;
 }
 
-export const LegalModal: React.FC<LegalModalProps> = ({
-  isOpen,
-  onClose,
-  defaultTab = 'cgu',
-}) => {
-  const [tab, setTab] = useState<'cgu' | 'privacy'>(defaultTab);
+interface LegalSection {
+  title: string;
+  text: string;
+}
+
+// Textes de la maquette (écran « Conditions et données »)
+const SECTIONS: Record<LegalTab, LegalSection[]> = {
+  cgu: [
+    { title: '1. À quoi sert l’appli', text: 'Déclarer les dépenses engagées pour le Groupe Saint-Martin et suivre leur remboursement.' },
+    { title: '2. Ton compte', text: 'Un compte par chef, à ton vrai nom. Un admin du groupe valide chaque inscription.' },
+    { title: '3. Les justificatifs', text: 'Chaque dépense est accompagnée d’un justificatif lisible : ticket, facture ou reçu.' },
+    { title: '4. Conservation', text: 'Les dépenses et leurs justificatifs sont conservés 10 ans.' },
+  ],
+  privacy: [
+    { title: '1. Données collectées', text: 'Prénom, nom, email, unité, dépenses déclarées et justificatifs.' },
+    { title: '2. Pourquoi', text: 'Uniquement pour la comptabilité du groupe et les remboursements.' },
+    { title: '3. Qui y a accès', text: '[À COMPLÉTER : qui consulte les dépenses et les justificatifs.]' },
+    { title: '4. Tes droits', text: '[À COMPLÉTER : comment consulter, corriger ou supprimer tes données.]' },
+  ],
+};
+
+const TABS: { id: LegalTab; label: string }[] = [
+  { id: 'cgu', label: "Conditions d'utilisation" },
+  { id: 'privacy', label: 'Données personnelles et RGPD' },
+];
+
+/** Fenêtre du bas « Conditions et données » : 2 onglets, fermée par « J'ai compris » ou Échap */
+export const LegalModal: React.FC<LegalModalProps> = ({ isOpen, onClose, defaultTab = 'cgu' }) => {
+  const [tab, setTab] = useState<LegalTab>(defaultTab);
+  const tabRefs = useRef<Record<LegalTab, HTMLButtonElement | null>>({ cgu: null, privacy: null });
+  const baseId = useId();
+
+  useEffect(() => {
+    if (isOpen) setTab(defaultTab);
+  }, [isOpen, defaultTab]);
+
+  // La maquette n'a pas de bouton Fermer : Échap reste disponible
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  const onTabKeyDown = (e: React.KeyboardEvent) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const index = TABS.findIndex((t) => t.id === tab);
+    const next =
+      e.key === 'Home'
+        ? 0
+        : e.key === 'End'
+          ? TABS.length - 1
+          : (index + (e.key === 'ArrowRight' ? 1 : -1) + TABS.length) % TABS.length;
+    setTab(TABS[next].id);
+    tabRefs.current[TABS[next].id]?.focus();
+  };
 
   return (
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title={tab === 'cgu' ? "Conditions Générales d'Utilisation" : "Politique de Confidentialité & RGPD"}
-      description="Groupe scout Saint-Martin"
-      className="max-w-2xl"
+      preventClose
+      variant="sheet"
+      title={<span className="text-2xl">Conditions et données</span>}
+      className="flex h-[90dvh] flex-col pt-[22px] md:h-[80dvh] md:max-h-[760px]"
     >
-      <div className="flex border-b mb-4">
-        <button
-          onClick={() => setTab('cgu')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-            tab === 'cgu'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+      <div className="-mt-0.5 flex min-h-0 flex-1 flex-col gap-3.5">
+        <div
+          role="tablist"
+          aria-label="Conditions et données"
+          className="grid grid-cols-2 gap-2"
+          onKeyDown={onTabKeyDown}
         >
-          Conditions d'Utilisation
-        </button>
-        <button
-          onClick={() => setTab('privacy')}
-          className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-            tab === 'privacy'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
+          {TABS.map((t) => {
+            const selected = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                ref={(el) => {
+                  tabRefs.current[t.id] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`${baseId}-tab-${t.id}`}
+                aria-selected={selected}
+                aria-controls={`${baseId}-panel`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  'min-h-[48px] min-w-0 rounded-[14px] border-2.5 border-line px-2.5 py-1.5 text-[14px] font-extrabold leading-[1.15]',
+                  selected ? 'bg-green text-on-color' : 'bg-surface text-ink hover:bg-surface2'
+                )}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div
+          role="tabpanel"
+          id={`${baseId}-panel`}
+          aria-labelledby={`${baseId}-tab-${tab}`}
+          tabIndex={0}
+          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-0.5 py-1"
         >
-          Données Personnelles & RGPD
-        </button>
-      </div>
-
-      <div className="space-y-4 text-sm text-foreground/90 max-h-[60vh] overflow-y-auto pr-2 leading-relaxed">
-        {tab === 'cgu' ? (
-          <>
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">1. Objet du service</h4>
-              <p>
-                Cette application est mise à disposition des chefs d'unité et responsables du <strong>Groupe Saint-Martin</strong>. Elle permet la remontée dématérialisée des dépenses engagées pour les activités scoutes (sorties, week-ends, camps) avec leurs justificatifs obligatoires, ainsi que le suivi des remboursements.
-              </p>
+          {SECTIONS[tab].map((sec) => (
+            <section key={sec.title} className="flex flex-col gap-1">
+              <h3 className="text-[17px] font-extrabold">{sec.title}</h3>
+              <p className="text-[15px] font-medium leading-[1.45] text-muted">{sec.text}</p>
             </section>
+          ))}
+        </div>
 
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">2. Accès et inscription</h4>
-              <p>
-                L'inscription requiert une adresse email valide, les prénom et nom réels du bénévole (l'usage de totems ou noms scouts est interdit sur les pièces financières), ainsi que le rattachement à son unité scoute. Tout nouveau compte requiert la validation préalable par un administrateur du groupe.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">3. Justificatifs et probité</h4>
-              <p>
-                Toute dépense déclarée doit obligatoirement être appuyée d'une facturette, reçu ou ticket de caisse lisible au format photo ou PDF. L'utilisateur s'engage à ne déclarer que des dépenses effectives et nécessaires aux activités de l'unité.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">4. Rôle et responsabilités</h4>
-              <p>
-                L'application constitue un outil opérationnel de transmission et ne se substitue pas à la comptabilité générale légale de l'association nationale ou locale.
-              </p>
-            </section>
-          </>
-        ) : (
-          <>
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">1. Finalité du traitement</h4>
-              <p>
-                Les données sont collectées exclusivement dans le cadre de la gestion associative, de l'organisation des camps et du remboursement des frais engagés par les chefs bénévoles au bénéfice des jeunes des unités du Groupe Saint-Martin.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">2. Données collectées</h4>
-              <p>
-                - Identité des chefs : prénom, nom, adresse email, unité(s) d'appartenance.<br />
-                - Données financières : dates, montants, motifs de dépenses, mode de paiement.<br />
-                - Pièces justificatives : photographies ou factures PDF des achats.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">3. Durée de conservation (Règle des 10 ans)</h4>
-              <p>
-                Conformément à l'article L123-22 du Code de commerce et aux obligations fiscales des associations de jeunesse et d'éducation populaire, <strong>les pièces justificatives comptables sont conservées pendant une durée légale de dix (10) ans</strong>. La clôture d'une période annuelle archive les données en lecture seule sécurisée.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">4. Sécurité et protection des mineurs</h4>
-              <p>
-                Les justificatifs sont hébergés dans un espace de stockage privé sécurisé par politiques RLS (Row Level Security). Les accès aux fichiers s'effectuent exclusivement via des liens éphémères signés. Aucune information nominative relative aux enfants mineurs ne doit être saisie dans les commentaires libres.
-              </p>
-            </section>
-
-            <section>
-              <h4 className="font-bold text-base text-foreground mb-1">5. Droits d'accès et de rectification</h4>
-              <p>
-                Chaque bénévole dispose d'un droit d'accès et de rectification de ses données personnelles auprès des administrateurs du groupe, sous réserve du respect des obligations légales de conservation des pièces financières.
-              </p>
-            </section>
-          </>
-        )}
-      </div>
-
-      <div className="mt-6 pt-4 border-t flex justify-end">
-        <Button variant="default" onClick={onClose}>
+        <Button size="lg" onClick={onClose}>
           J'ai compris
         </Button>
       </div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Download } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Expense } from '@/types/database';
@@ -17,6 +16,18 @@ interface AdminExportModalProps {
   periodName?: string;
 }
 
+// Libellés courts des cases (les en-têtes du fichier CSV restent ceux de CSV_COLUMN_DEFINITIONS)
+const COLUMN_LABELS: Record<CsvColumnKey, string> = {
+  date: 'Date',
+  unit: 'Unité',
+  creator: 'Chef',
+  amount: 'Montant',
+  category: 'Motif',
+  payment_method: 'Paiement',
+  reimbursement_status: 'Remboursement',
+  comment: 'Commentaire',
+};
+
 export const AdminExportModal: React.FC<AdminExportModalProps> = ({
   isOpen,
   onClose,
@@ -31,19 +42,18 @@ export const AdminExportModal: React.FC<AdminExportModalProps> = ({
     category: true,
     payment_method: true,
     reimbursement_status: true,
-    comment: true,
+    comment: false,
   });
 
   const allKeys = Object.keys(CSV_COLUMN_DEFINITIONS) as CsvColumnKey[];
+  const activeKeys = allKeys.filter((k) => selectedCols[k]);
 
   const handleToggle = (key: CsvColumnKey) => {
     setSelectedCols((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleExport = () => {
-    const activeKeys = allKeys.filter((k) => selectedCols[k]);
     if (activeKeys.length === 0) return;
-
     const csv = generateCsvContent(expenses, activeKeys);
     const dateStr = new Date().toISOString().split('T')[0];
     downloadCsv(`Export_Compta_Saint_Martin_${periodName.replace(/\s+/g, '_')}_${dateStr}.csv`, csv);
@@ -54,43 +64,40 @@ export const AdminExportModal: React.FC<AdminExportModalProps> = ({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Export CSV modulaire"
-      description={`Export de ${expenses.length} dépense(s) pour Excel`}
-      className="max-w-md"
+      title="Export CSV"
+      description={`${periodName} · ${expenses.length} dépense${expenses.length > 1 ? 's' : ''} avec les filtres en cours. Choisis les colonnes :`}
     >
-      <div className="space-y-4 pt-2">
-        <p className="text-xs text-muted-foreground">
-          Sélectionne les colonnes à inclure dans le fichier CSV :
-        </p>
+      <div className="flex flex-col gap-3.5">
+        <fieldset className="m-0 grid grid-cols-2 gap-2 border-0 p-0">
+          <legend className="sr-only">Colonnes à exporter</legend>
+          {allKeys.map((key) => (
+            <label
+              key={key}
+              className="flex min-h-[46px] min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border-2 border-line px-3 text-[15px] font-bold leading-tight"
+            >
+              <input
+                type="checkbox"
+                checked={selectedCols[key]}
+                onChange={() => handleToggle(key)}
+                className="m-0 h-5 w-5 shrink-0 accent-green"
+              />
+              <span className="min-w-0 break-words">{COLUMN_LABELS[key]}</span>
+            </label>
+          ))}
+        </fieldset>
 
-        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-          {allKeys.map((key) => {
-            const def = CSV_COLUMN_DEFINITIONS[key];
-            const isChecked = selectedCols[key];
-            return (
-              <label
-                key={key}
-                className="flex items-center justify-between p-2.5 rounded-xl border bg-card hover:bg-accent cursor-pointer text-xs font-semibold"
-              >
-                <span>{def.label}</span>
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => handleToggle(key)}
-                  className="h-4 w-4 rounded text-primary focus:ring-primary"
-                />
-              </label>
-            );
-          })}
-        </div>
+        {activeKeys.length === 0 && (
+          <p role="status" className="text-[14px] font-semibold text-error">
+            Coche au moins une colonne.
+          </p>
+        )}
 
-        <div className="pt-3 border-t flex justify-end space-x-2">
-          <Button size="sm" variant="outline" onClick={onClose}>
+        <div className="grid grid-cols-2 gap-2.5">
+          <Button variant="neutral" onClick={onClose}>
             Annuler
           </Button>
-          <Button size="sm" variant="default" onClick={handleExport}>
-            <Download className="w-3.5 h-3.5 mr-1" />
-            Télécharger le CSV
+          <Button variant="primary" onClick={handleExport} disabled={activeKeys.length === 0}>
+            Exporter
           </Button>
         </div>
       </div>

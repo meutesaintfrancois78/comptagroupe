@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Tag, Check, X } from 'lucide-react';
 import { Unit, ExpenseCategory } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/feedback';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
 interface AdminUnitCategoryManagerProps {
@@ -11,145 +12,126 @@ interface AdminUnitCategoryManagerProps {
   onRefresh: () => void;
 }
 
+interface BlockItem {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+/** Bloc de la maquette : titre, liste avec interrupteurs, champ + « Ajouter » */
+function ManagerBlock({
+  title,
+  items,
+  addLabel,
+  placeholder,
+  onToggle,
+  onAdd,
+}: {
+  title: string;
+  items: BlockItem[];
+  addLabel: string;
+  placeholder: string;
+  onToggle: (item: BlockItem) => void;
+  onAdd: (name: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = value.trim();
+    if (!name) return;
+    setIsSubmitting(true);
+    try {
+      await onAdd(name);
+      setValue('');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="flex min-w-0 flex-col gap-2 rounded-[20px] border-2.5 border-line bg-surface p-3.5 shadow-pop">
+      <h2 className="mb-0.5 text-[18px] font-extrabold">{title}</h2>
+      <ul className="flex flex-col">
+        {items.map((it) => (
+          <li key={it.id} className="flex min-h-[44px] items-center justify-between gap-2.5">
+            <span className={cn('min-w-0 break-words text-[15px] font-bold', it.is_active ? 'text-ink' : 'text-muted')}>
+              {it.name}
+            </span>
+            <Switch
+              checked={it.is_active}
+              onChange={() => onToggle(it)}
+              label={`${it.name} : ${it.is_active ? 'active' : 'inactive'}`}
+            />
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={handleSubmit} className="flex gap-2 border-t-2 border-divider pt-2">
+        <Input
+          aria-label={addLabel}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="min-h-[44px] min-w-0 flex-1 rounded-lg px-3 font-medium"
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          isLoading={isSubmitting}
+          className="min-h-[44px] shrink-0 rounded-lg px-3.5 text-[14px] shadow-none"
+        >
+          Ajouter
+        </Button>
+      </form>
+    </section>
+  );
+}
+
 export const AdminUnitCategoryManager: React.FC<AdminUnitCategoryManagerProps> = ({
   units,
   categories,
   onRefresh,
 }) => {
-  const [newUnitName, setNewUnitName] = useState('');
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleCreateUnit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUnitName.trim()) return;
-    setIsSubmitting(true);
-    await supabase.from('units').insert({ name: newUnitName.trim(), is_active: true });
-    setNewUnitName('');
-    setIsSubmitting(false);
+  const handleCreateUnit = async (name: string) => {
+    await supabase.from('units').insert({ name, is_active: true });
     onRefresh();
   };
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCategoryName.trim()) return;
-    setIsSubmitting(true);
-    await supabase.from('expense_categories').insert({ name: newCategoryName.trim(), is_active: true });
-    setNewCategoryName('');
-    setIsSubmitting(false);
+  const handleCreateCategory = async (name: string) => {
+    await supabase.from('expense_categories').insert({ name, is_active: true });
     onRefresh();
   };
 
-  const handleToggleUnitActive = async (unit: Unit) => {
+  const handleToggleUnitActive = async (unit: BlockItem) => {
     await supabase.from('units').update({ is_active: !unit.is_active }).eq('id', unit.id);
     onRefresh();
   };
 
-  const handleToggleCategoryActive = async (cat: ExpenseCategory) => {
+  const handleToggleCategoryActive = async (cat: BlockItem) => {
     await supabase.from('expense_categories').update({ is_active: !cat.is_active }).eq('id', cat.id);
     onRefresh();
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* 1. Gestion des Unités */}
-      <div className="bg-card rounded-3xl border p-5 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-lg font-bold text-foreground">Unités scoutes</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Unités actives dans le Groupe Saint-Martin
-          </p>
-        </div>
-
-        <form onSubmit={handleCreateUnit} className="flex gap-2">
-          <Input
-            placeholder="Ex : Meute 4"
-            value={newUnitName}
-            onChange={(e) => setNewUnitName(e.target.value)}
-            className="h-10 text-xs"
-          />
-          <Button size="sm" type="submit" isLoading={isSubmitting}>
-            <Plus className="w-4 h-4 mr-1" />
-            Ajouter
-          </Button>
-        </form>
-
-        <div className="space-y-2 pt-2">
-          {units.map((u) => (
-            <div
-              key={u.id}
-              className="flex items-center justify-between p-3 rounded-xl border bg-muted/30 text-xs font-semibold"
-            >
-              <span className={u.is_active ? 'text-foreground' : 'text-muted-foreground line-through'}>
-                {u.name}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleToggleUnitActive(u)}
-                className="h-7 text-[11px]"
-              >
-                {u.is_active ? (
-                  <span className="text-emerald-700">Active</span>
-                ) : (
-                  <span className="text-muted-foreground">Inactive</span>
-                )}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 2. Gestion des Catégories de dépenses */}
-      <div className="bg-card rounded-3xl border p-5 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-lg font-bold text-foreground">Catégories de dépenses</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Liste proposée aux chefs lors de la saisie
-          </p>
-        </div>
-
-        <form onSubmit={handleCreateCategory} className="flex gap-2">
-          <Input
-            placeholder="Ex : Assurance"
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            className="h-10 text-xs"
-          />
-          <Button size="sm" type="submit" isLoading={isSubmitting}>
-            <Plus className="w-4 h-4 mr-1" />
-            Ajouter
-          </Button>
-        </form>
-
-        <div className="space-y-2 pt-2">
-          {categories.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center justify-between p-3 rounded-xl border bg-muted/30 text-xs font-semibold"
-            >
-              <div className="flex items-center space-x-2">
-                <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className={c.is_active ? 'text-foreground' : 'text-muted-foreground line-through'}>
-                  {c.name}
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleToggleCategoryActive(c)}
-                className="h-7 text-[11px]"
-              >
-                {c.is_active ? (
-                  <span className="text-emerald-700">Active</span>
-                ) : (
-                  <span className="text-muted-foreground">Inactive</span>
-                )}
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
+    // Empilés sur téléphone et tablette, côte à côte dès 1024 px
+    <div className="grid grid-cols-1 items-start gap-3.5 lg:grid-cols-2">
+      <ManagerBlock
+        title="Unités scoutes"
+        items={units}
+        addLabel="Nouvelle unité"
+        placeholder="Ex : Meute 4"
+        onToggle={handleToggleUnitActive}
+        onAdd={handleCreateUnit}
+      />
+      <ManagerBlock
+        title="Catégories de dépenses"
+        items={categories}
+        addLabel="Nouvelle catégorie"
+        placeholder="Ex : Assurance"
+        onToggle={handleToggleCategoryActive}
+        onAdd={handleCreateCategory}
+      />
     </div>
   );
 };

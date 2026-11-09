@@ -1,22 +1,14 @@
 import React, { useState } from 'react';
-import {
-  Calendar,
-  Lock,
-  Unlock,
-  Trash2,
-  Download,
-  AlertTriangle,
-  Plus,
-  CheckCircle,
-} from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Period, Expense } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Field, Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
+import { Banner, IconTile } from '@/components/ui/feedback';
 import { generateCsvContent, downloadCsv } from '@/lib/exportCsv';
 import { generateAndDownloadReceiptsZip } from '@/lib/exportZip';
-import { formatCurrency, sumAmounts } from '@/lib/utils';
+import { cn, formatCurrency, formatDateFr, sumAmounts } from '@/lib/utils';
 import { canPurgePeriod } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
 
@@ -26,23 +18,39 @@ interface AdminPeriodManagerProps {
   onRefresh: () => void;
 }
 
-export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
-  periods,
-  expenses,
-  onRefresh,
-}) => {
+const RETENTION_YEARS = 10;
+
+/** Vrai si la période a commencé il y a moins de 10 ans (ou si la date est illisible) */
+function isWithinRetention(period: Period, now: Date = new Date()): boolean {
+  const start = new Date(period.start_date);
+  if (Number.isNaN(start.getTime())) return true;
+  const limit = new Date(start);
+  limit.setFullYear(limit.getFullYear() + RETENTION_YEARS);
+  return limit > now;
+}
+
+const fileSafe = (name: string) => name.replace(/\s+/g, '_');
+
+const smallButton = 'min-h-[44px] rounded-lg border-2 px-3 text-[14px]';
+
+export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({ periods, expenses, onRefresh }) => {
   const [newPeriodName, setNewPeriodName] = useState('');
   const [newPeriodType, setNewPeriodType] = useState<'year' | 'camp'>('year');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [busyPeriodId, setBusyPeriodId] = useState<string | null>(null);
 
-  // Modal de purge
+  // Fenêtre de purge
   const [periodToPurge, setPeriodToPurge] = useState<Period | null>(null);
   const [purgeConfirmText, setPurgeConfirmText] = useState('');
   const [isPurging, setIsPurging] = useState(false);
+  const [purgeError, setPurgeError] = useState<string | null>(null);
 
   const [notification, setNotification] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Clôturer une période avec export automatique obligatoire
+  const expensesOf = (periodId: string) => expenses.filter((e) => e.period_id === periodId);
+
+  // Clôturer une période, avec export automatique obligatoire
   const handleClosePeriod = async (period: Period) => {
     if (
       !window.confirm(
@@ -52,32 +60,48 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
       return;
     }
 
-    setIsSubmitting(true);
+    setErrorMsg(null);
+    setBusyPeriodId(period.id);
     try {
       // 1. Export automatique immédiat
-      const periodExpenses = expenses.filter((e) => e.period_id === period.id);
-      const csv = generateCsvContent(periodExpenses);
-      downloadCsv(`Cloture_${period.name.replace(/\s+/g, '_')}_Automatique.csv`, csv);
+      const csv = generateCsvContent(expensesOf(period.id));
+      downloadCsv(`Cloture_${fileSafe(period.name)}_Automatique.csv`, csv);
 
       // 2. Clôture de la période
-      await supabase
+      const { error } = await supabase
         .from('periods')
         .update({ status: 'closed', end_date: new Date().toISOString().split('T')[0] })
         .eq('id', period.id);
+      if (error) {
+        setErrorMsg(error.message || 'Erreur lors de la clôture.');
+        return;
+      }
 
-      setNotification(`Période "${period.name}" clôturée et export de sauvegarde téléchargé.`);
+      setNotification(
+        `Période « ${period.name} » clôturée : les chefs ne peuvent plus y ajouter de dépenses. Export de sauvegarde téléchargé.`
+      );
       onRefresh();
     } finally {
-      setIsSubmitting(false);
+      setBusyPeriodId(null);
     }
   };
 
   // Rouvrir une période clôturée
   const handleReopenPeriod = async (period: Period) => {
     if (!window.confirm(`Rouvrir la période "${period.name}" pour les chefs ?`)) return;
-    await supabase.from('periods').update({ status: 'open' }).eq('id', period.id);
-    setNotification(`Période "${period.name}" réouverte.`);
-    onRefresh();
+    setErrorMsg(null);
+    setBusyPeriodId(period.id);
+    try {
+      const { error } = await supabase.from('periods').update({ status: 'open' }).eq('id', period.id);
+      if (error) {
+        setErrorMsg(error.message || 'Erreur lors de la réouverture.');
+        return;
+      }
+      setNotification(`Période « ${period.name} » rouverte : les chefs peuvent de nouveau y ajouter des dépenses.`);
+      onRefresh();
+    } finally {
+      setBusyPeriodId(null);
+    }
   };
 
   // Créer une nouvelle période
@@ -86,267 +110,295 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
     if (!newPeriodName.trim()) return;
 
     setIsSubmitting(true);
-    await supabase.from('periods').insert({
-      name: newPeriodName.trim(),
-      type: newPeriodType,
-      status: 'open',
-      start_date: new Date().toISOString().split('T')[0],
-    });
-    setNewPeriodName('');
-    setIsSubmitting(false);
-    onRefresh();
+    try {
+      await supabase.from('periods').insert({
+        name: newPeriodName.trim(),
+        type: newPeriodType,
+        status: 'open',
+        start_date: new Date().toISOString().split('T')[0],
+      });
+      setNewPeriodName('');
+      onRefresh();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Purge irréversible d'une période (avec export obligatoire avant)
+  const openPurge = (p: Period) => {
+    setPurgeConfirmText('');
+    setPurgeError(null);
+    setPeriodToPurge(p);
+  };
+
+  const closePurge = () => {
+    if (isPurging) return;
+    setPeriodToPurge(null);
+    setPurgeConfirmText('');
+    setPurgeError(null);
+  };
+
+  /*
+   * Purge irréversible d'une période clôturée :
+   * 1. sauvegarde CSV + ZIP ; on s'arrête si le ZIP n'a pas pu inclure tous les justificatifs ;
+   * 2. suppression des dépenses en base ;
+   * 3. suppression des fichiers du stockage (un échec ici laisse des fichiers orphelins, pas de perte) ;
+   * 4. suppression de la période.
+   */
   const handleExecutePurge = async () => {
     if (!periodToPurge || purgeConfirmText.trim() !== 'PURGER') return;
     if (!canPurgePeriod(periodToPurge)) {
-      alert("Impossible de purger une période active/ouverte. Elle doit d'abord être clôturée.");
+      setPurgeError("Impossible de purger une période ouverte. Elle doit d'abord être clôturée.");
       return;
     }
 
     setIsPurging(true);
+    setPurgeError(null);
+    const period = periodToPurge;
     try {
-      const periodExpenses = expenses.filter((e) => e.period_id === periodToPurge.id);
+      const periodExpenses = expensesOf(period.id);
 
-      // 1. Export obligatoire avant purge
+      // 1. Sauvegarde obligatoire avant purge
       const csv = generateCsvContent(periodExpenses);
-      downloadCsv(`Archive_PrePurge_${periodToPurge.name.replace(/\s+/g, '_')}.csv`, csv);
-      await generateAndDownloadReceiptsZip(
+      downloadCsv(`Archive_PrePurge_${fileSafe(period.name)}.csv`, csv);
+      const report = await generateAndDownloadReceiptsZip(
         periodExpenses,
-        `Archive_PrePurge_Justificatifs_${periodToPurge.name.replace(/\s+/g, '_')}.zip`
+        `Archive_PrePurge_Justificatifs_${fileSafe(period.name)}.zip`
       );
-
-      // 2. Suppression des justificatifs dans le bucket de stockage
-      const proofPaths = periodExpenses
-        .map((e) => e.proof_path)
-        .filter((path): path is string => Boolean(path));
-      if (proofPaths.length > 0) {
-        const { error: storageError } = await supabase.storage
-          .from('receipts')
-          .remove(proofPaths);
-        if (storageError) {
-          console.warn('Erreur suppression fichiers storage:', storageError);
-        }
+      if (report.missing.length > 0) {
+        const n = report.missing.length;
+        throw new Error(
+          `sauvegarde incomplète : ${n} justificatif${n > 1 ? 's' : ''} n'${n > 1 ? 'ont' : 'a'} pas pu être ajouté${
+            n > 1 ? 's' : ''
+          } au ZIP. Purge annulée, rien n'a été supprimé. Réessaie plus tard.`
+        );
       }
 
-      // 3. Suppression de toutes les dépenses rattachées
+      // 2. Suppression des dépenses en base
       for (const exp of periodExpenses) {
         const { error: delExpErr } = await supabase.from('expenses').delete().eq('id', exp.id);
         if (delExpErr) throw delExpErr;
       }
 
+      // 3. Suppression des justificatifs dans le stockage, une fois les dépenses supprimées
+      const proofPaths = periodExpenses
+        .map((e) => e.proof_path)
+        .filter((path): path is string => Boolean(path));
+      let storageWarning = '';
+      if (proofPaths.length > 0) {
+        const { error: storageError } = await supabase.storage.from('receipts').remove(proofPaths);
+        if (storageError) {
+          console.warn('Erreur suppression fichiers storage:', storageError);
+          storageWarning = ' Attention : certains fichiers sont restés dans le stockage.';
+        }
+      }
+
       // 4. Suppression de la période
-      const { error: delPeriodErr } = await supabase.from('periods').delete().eq('id', periodToPurge.id);
+      const { error: delPeriodErr } = await supabase.from('periods').delete().eq('id', period.id);
       if (delPeriodErr) throw delPeriodErr;
 
-      setNotification(`Période "${periodToPurge.name}" purgée avec succès après sauvegarde intégrale.`);
+      setNotification(`Période « ${period.name} » purgée après sauvegarde intégrale.${storageWarning}`);
       setPeriodToPurge(null);
       setPurgeConfirmText('');
       onRefresh();
     } catch (err: any) {
-      alert(`Erreur lors de la purge : ${err?.message || 'Erreur inconnue'}`);
+      setPurgeError(`Erreur lors de la purge : ${err?.message || 'erreur inconnue'}`);
     } finally {
       setIsPurging(false);
     }
   };
 
+  const purgeOk = purgeConfirmText.trim() === 'PURGER';
+
   return (
-    <div className="space-y-6">
-      {notification && (
-        <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 rounded-2xl text-xs font-semibold flex items-center space-x-2">
-          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{notification}</span>
-        </div>
-      )}
+    <div className="flex flex-col gap-3">
+      {notification && <Banner tone="notice">{notification}</Banner>}
+      {errorMsg && <Banner tone="error">{errorMsg}</Banner>}
 
-      {/* Info Conservation 10 ans */}
-      <div className="bg-scout-50/50 dark:bg-card rounded-3xl border border-scout-200 dark:border-border p-5 shadow-sm">
-        <h3 className="text-base font-extrabold text-foreground flex items-center">
-          <Calendar className="w-5 h-5 mr-2 text-emerald-700" />
-          Gestion des Périodes (Année / Camp) & Règle des 10 ans
-        </h3>
-        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Une période clôturée passe en <strong>lecture seule réservée aux administrateurs</strong> et disparaît de la vue des chefs.
-          Conformément au Code de commerce et aux règles associatives du Groupe Saint-Martin, les pièces et dépenses sont conservées pendant 10 ans. La purge n'est à utiliser qu'en cas exceptionnel et déclenche automatiquement un téléchargement de sauvegarde.
-        </p>
-      </div>
-
-      {/* Création d'une nouvelle période */}
-      <div className="bg-card rounded-3xl border p-5 shadow-sm">
-        <h4 className="text-sm font-bold text-foreground mb-3">
-          Ouvrir une nouvelle période (Camp d'été ou Nouvelle Année)
-        </h4>
-        <form onSubmit={handleCreatePeriod} className="flex flex-col sm:flex-row gap-3">
-          <Input
-            placeholder="Ex : Camp d'été 2027"
-            value={newPeriodName}
-            onChange={(e) => setNewPeriodName(e.target.value)}
-            className="flex-1 text-xs"
-          />
-          <select
-            value={newPeriodType}
-            onChange={(e) => setNewPeriodType(e.target.value as 'year' | 'camp')}
-            className="h-10 text-xs font-medium rounded-lg border border-input bg-background px-3 py-1"
+      {/* Nouvelle période */}
+      <section className="flex flex-col gap-2.5 rounded-[20px] border-2.5 border-line bg-surface p-3.5">
+        <h2 className="text-[17px] font-extrabold">Nouvelle période</h2>
+        <form onSubmit={handleCreatePeriod} className="flex flex-col gap-2.5">
+          <Field label="Nom" htmlFor="new-period-name">
+            <Input
+              id="new-period-name"
+              placeholder="Ex : Camp d'été 2027"
+              value={newPeriodName}
+              onChange={(e) => setNewPeriodName(e.target.value)}
+              className="min-h-[44px] rounded-lg px-3 font-medium"
+            />
+          </Field>
+          <div role="group" aria-label="Type de période" className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ['year', 'Année'],
+                ['camp', 'Camp'],
+              ] as const
+            ).map(([value, label]) => {
+              const on = newPeriodType === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setNewPeriodType(value)}
+                  className={cn(
+                    'min-h-[44px] rounded-lg border-2 border-line text-[14px] font-extrabold',
+                    on ? 'bg-green text-on-color' : 'bg-surface text-ink hover:bg-surface2'
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={isSubmitting}
+            disabled={!newPeriodName.trim()}
+            className="min-h-[46px] rounded-[14px] text-[15px] shadow-[3px_3px_0_rgb(var(--shadow))]"
           >
-            <option value="year">Année scoute</option>
-            <option value="camp">Camp d'été</option>
-          </select>
-          <Button size="default" type="submit" isLoading={isSubmitting}>
-            <Plus className="w-4 h-4 mr-1" />
-            Ouvrir la période
+            Créer la période
           </Button>
         </form>
-      </div>
+      </section>
 
-      {/* Liste des périodes */}
-      <div className="bg-card rounded-2xl border shadow-sm divide-y">
+      {/* Périodes : une colonne, deux dès 1024 px */}
+      <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {periods.map((p) => {
           const isClosed = p.status === 'closed';
-          const periodExpenses = expenses.filter((e) => e.period_id === p.id);
+          const periodExpenses = expensesOf(p.id);
           const totalAmount = sumAmounts(periodExpenses.map((e) => e.amount));
+          const busy = busyPeriodId === p.id;
 
           return (
-            <div
+            <li
               key={p.id}
-              className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              className="flex min-w-0 flex-col gap-2.5 rounded-[20px] border-2.5 border-line bg-surface p-3.5"
             >
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="font-bold text-base text-foreground">{p.name}</span>
-                  {isClosed ? (
-                    <Badge variant="secondary" className="text-[10px]">
-                      Clôturée
-                    </Badge>
-                  ) : (
-                    <Badge variant="success" className="text-[10px]">
-                      Active / Ouverte
-                    </Badge>
-                  )}
-                  <span className="text-xs text-muted-foreground uppercase">
-                    ({p.type === 'camp' ? 'Camp' : 'Année'})
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <span className="break-words text-[17px] font-extrabold">{p.name}</span>
+                  <span className="text-[13px] font-semibold text-muted">
+                    {p.type === 'camp' ? 'Camp' : 'Année'} · Total {formatCurrency(totalAmount)}
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {periodExpenses.length} dépense(s) déclarée(s) • Total :{' '}
-                  <strong className="text-foreground">{formatCurrency(totalAmount)}</strong>
-                </div>
+                <Badge variant={isClosed ? 'yellow' : 'green'} className="shrink-0">
+                  {isClosed ? 'Clôturée' : 'Ouverte'}
+                </Badge>
               </div>
-
-              {/* Actions Période */}
-              <div className="flex items-center space-x-2">
-                {/* Export de la période */}
+              <div className="flex flex-wrap gap-2">
                 <Button
+                  variant="neutral"
                   size="sm"
-                  variant="outline"
+                  isLoading={busy}
+                  onClick={() => (isClosed ? handleReopenPeriod(p) : handleClosePeriod(p))}
+                  aria-label={`${isClosed ? 'Rouvrir' : 'Clôturer'} la période ${p.name}`}
+                  className={smallButton}
+                >
+                  {isClosed ? 'Rouvrir' : 'Clôturer'}
+                </Button>
+                <Button
+                  variant="neutral"
+                  size="sm"
                   onClick={() => {
                     const csv = generateCsvContent(periodExpenses);
-                    downloadCsv(`Export_${p.name.replace(/\s+/g, '_')}.csv`, csv);
+                    downloadCsv(`Export_${fileSafe(p.name)}.csv`, csv);
                   }}
-                  title="Exporter le tableau en CSV"
-                  className="text-xs"
+                  aria-label={`Exporter la période ${p.name} en CSV`}
+                  className={smallButton}
                 >
-                  <Download className="w-3.5 h-3.5 mr-1" />
-                  CSV
+                  Exporter
                 </Button>
-
-                {/* Clôture / Réouverture */}
-                {!isClosed ? (
+                {/* Purge : seulement sur une période déjà clôturée */}
+                {isClosed && (
                   <Button
+                    variant="destructive"
                     size="sm"
-                    variant="default"
-                    onClick={() => handleClosePeriod(p)}
-                    className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold"
+                    onClick={() => openPurge(p)}
+                    aria-label={`Purger la période ${p.name}`}
+                    className={smallButton}
                   >
-                    <Lock className="w-3.5 h-3.5 mr-1" />
-                    Clôturer (avec export)
+                    Purger
                   </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleReopenPeriod(p)}
-                    className="text-xs text-emerald-700"
-                  >
-                    <Unlock className="w-3.5 h-3.5 mr-1" />
-                    Rouvrir
-                  </Button>
-                )}
-
-                {/* Purge : autorisée seulement sur période déjà clôturée */}
-                {isClosed ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setPeriodToPurge(p)}
-                    className="text-xs text-muted-foreground hover:text-destructive"
-                    title="Purger définitivement la période clôturée (sauvegarde auto préalable)"
-                    aria-label="Purger la période"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                ) : (
-                  <span
-                    className="text-[10px] text-muted-foreground/60 italic px-1 cursor-not-allowed select-none"
-                    title="Une période ouverte ne peut pas être purgée. Elle doit d'abord être clôturée."
-                  >
-                    Purge verrouillée
-                  </span>
                 )}
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      {/* Modal de purge renforcée */}
-      {periodToPurge && (
-        <Dialog
-          isOpen={true}
-          onClose={() => setPeriodToPurge(null)}
-          title="Confirmation renforcée : Purge de période"
-          description={`Période : ${periodToPurge.name}`}
-          className="max-w-md border-destructive/30"
-        >
-          <div className="space-y-4 pt-2">
-            <div className="p-3 bg-destructive/15 text-destructive rounded-2xl text-xs font-semibold flex items-start space-x-2">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div>
-                <strong>Attention action irréversible :</strong> Toutes les dépenses et données de cette période seront définitivement supprimées.
-                Un export de sauvegarde complet (CSV + ZIP des justificatifs) sera obligatoirement téléchargé avant suppression.
-              </div>
-            </div>
+      {/* Fenêtre de purge */}
+      <Dialog
+        isOpen={Boolean(periodToPurge)}
+        onClose={closePurge}
+        preventClose={isPurging}
+        variant="center"
+        tone="danger"
+        role="alertdialog"
+        title={
+          periodToPurge ? (
+            <span className="flex items-center gap-3">
+              <IconTile color="red" size={48} className="rounded-full">
+                <Trash2 className="h-6 w-6" strokeWidth={2.4} />
+              </IconTile>
+              <span className="min-w-0 flex-1 break-words leading-tight">Purger « {periodToPurge.name} » ?</span>
+            </span>
+          ) : undefined
+        }
+      >
+        {periodToPurge && (
+          <div className="flex flex-col gap-3.5">
+            <p className="text-[15px] font-medium leading-snug">
+              Toutes les dépenses et tous les justificatifs de cette période seront supprimés définitivement. Une
+              sauvegarde (CSV + ZIP des justificatifs) sera téléchargée avant : cette action est irréversible.
+            </p>
 
-            <div>
-              <label className="block text-xs font-bold text-foreground mb-1">
-                Tape <strong>PURGER</strong> en majuscules pour confirmer :
-              </label>
+            {isWithinRetention(periodToPurge) && (
+              <Banner tone="warning">
+                Cette période a moins de {RETENTION_YEARS} ans (début le {formatDateFr(periodToPurge.start_date)}).
+                Dépenses et justificatifs doivent normalement être conservés {RETENTION_YEARS} ans : ne purge qu'en
+                cas exceptionnel.
+              </Banner>
+            )}
+
+            <Field label="Pour confirmer, tape PURGER" htmlFor="purge-confirm">
               <Input
+                id="purge-confirm"
                 type="text"
-                placeholder="PURGER"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
                 value={purgeConfirmText}
                 onChange={(e) => setPurgeConfirmText(e.target.value)}
-                autoFocus
+                className="min-h-[50px] rounded-[14px] text-[18px] font-extrabold tracking-[0.08em]"
               />
-            </div>
+            </Field>
 
-            <div className="flex justify-end space-x-2 pt-2">
-              <Button size="sm" variant="outline" onClick={() => setPeriodToPurge(null)}>
+            {purgeError && <Banner tone="error">{purgeError}</Banner>}
+
+            <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-2.5">
+              <Button
+                variant="neutral"
+                onClick={closePurge}
+                disabled={isPurging}
+                className="px-2 text-[15px]"
+              >
                 Annuler
               </Button>
               <Button
-                size="sm"
-                variant="destructive"
-                disabled={purgeConfirmText.trim() !== 'PURGER'}
+                variant="purge"
+                disabled={!purgeOk}
                 isLoading={isPurging}
                 onClick={handleExecutePurge}
+                className="whitespace-normal px-2 text-[15px] leading-tight"
               >
                 Purger définitivement
               </Button>
             </div>
           </div>
-        </Dialog>
-      )}
+        )}
+      </Dialog>
     </div>
   );
 };

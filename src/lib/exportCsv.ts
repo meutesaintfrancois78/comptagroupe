@@ -50,11 +50,10 @@ export const CSV_COLUMN_DEFINITIONS: Record<CsvColumnKey, { label: string; getVa
 };
 
 export function escapeCsvField(field: string): string {
-  let safe = field.trim();
-  // Neutralise Excel formula execution (CWE-1236 CSV Formula Injection)
-  if (/^[=+\-@\t\r]/.test(safe)) {
-    safe = `'${safe}`;
-  }
+  // Neutralise l'injection de formule (CWE-1236) : on retire les caractères
+  // qui lancent une formule en tête de champ (=, +, -, @, tabulation, retour chariot),
+  // y compris s'ils se répètent ou alternent avec des espaces.
+  const safe = field.trim().replace(/^[=+\-@\t\r\s]+/, '');
   if (safe.includes(';') || safe.includes('"') || safe.includes('\n') || safe.includes('\r')) {
     return `"${safe.replace(/"/g, '""')}"`;
   }
