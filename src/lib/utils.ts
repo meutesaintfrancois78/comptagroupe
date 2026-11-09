@@ -29,8 +29,8 @@ export function parseAmount(input: string, maxAmount: number = 10000): number | 
   // Remove whitespace and non-breaking spaces
   const sanitized = input.trim().replace(/[\s\u00A0\u202F]/g, '');
 
-  // Strict regex check: only numbers and optional comma/dot followed by digits
-  if (!/^\d+([.,]\d+)?$/.test(sanitized)) {
+  // Strict regex check: digits, then optionally a comma or dot and 1 or 2 decimals (cents)
+  if (!/^\d+([.,]\d{1,2})?$/.test(sanitized)) {
     return null;
   }
 
@@ -42,6 +42,37 @@ export function parseAmount(input: string, maxAmount: number = 10000): number | 
   }
 
   return Math.round(num * 100) / 100;
+}
+
+/**
+ * Message d'erreur à afficher pour un montant saisi, ou null s'il est valide.
+ * Distingue le format, les centimes, le zéro et le plafond pour que le chef sache quoi corriger.
+ */
+export function amountError(input: string, maxAmount: number = 10000): string | null {
+  const sanitized = (input || '').trim().replace(/[\s\u00A0\u202F]/g, '');
+  if (!sanitized) return 'Saisis le montant de la dépense.';
+  if (/^\d+[.,]\d{3,}$/.test(sanitized)) return 'Deux chiffres au plus après la virgule (les centimes).';
+  if (!/^\d+([.,]\d{1,2})?$/.test(sanitized)) return 'Montant non reconnu : écris par exemple 12,50.';
+  const num = parseFloat(sanitized.replace(',', '.'));
+  if (!(num > 0)) return 'Le montant doit être supérieur à 0 €.';
+  if (num > maxAmount) return `Le montant ne peut pas dépasser ${formatCurrency(maxAmount)}.`;
+  return null;
+}
+
+/** Date du jour au format AAAA-MM-JJ, dans le fuseau du téléphone (et non en UTC) */
+export function todayLocal(now: Date = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Message d'erreur pour la date d'une dépense, ou null si elle est valide */
+export function expenseDateError(date: string, minDate?: string | null, today: string = todayLocal()): string | null {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'Indique la date de la dépense.';
+  if (date > today) return 'La date ne peut pas être dans le futur.';
+  if (minDate && date < minDate) return 'La date est antérieure au début de la période en cours.';
+  return null;
 }
 
 /**

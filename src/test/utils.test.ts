@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { parseAmount, formatCurrency, formatDateFr } from '../lib/utils';
+import { amountError, expenseDateError, todayLocal, parseAmount, formatCurrency, formatDateFr } from '../lib/utils';
 
 describe('Utility Functions TDD', () => {
   describe('parseAmount', () => {
@@ -11,8 +11,9 @@ describe('Utility Functions TDD', () => {
       expect(parseAmount('42,50')).toBe(42.5);
     });
 
-    it('should round to 2 decimal places', () => {
-      expect(parseAmount('12.345')).toBe(12.35);
+    it('should refuse more than 2 decimals instead of rounding silently', () => {
+      expect(parseAmount('12.345')).toBeNull();
+      expect(parseAmount('12,5')).toBe(12.5);
     });
 
     it('should reject negative amounts and zero', () => {
@@ -63,5 +64,27 @@ describe('Utility Functions TDD', () => {
     it('should convert YYYY-MM-DD to DD/MM/YYYY', () => {
       expect(formatDateFr('2026-11-08')).toBe('08/11/2026');
     });
+  });
+});
+
+describe('Messages de saisie', () => {
+  it('explique pourquoi un montant est refusé', () => {
+    expect(amountError('')).toBe('Saisis le montant de la dépense.');
+    expect(amountError('12,555')).toBe('Deux chiffres au plus après la virgule (les centimes).');
+    expect(amountError('abc')).toBe('Montant non reconnu : écris par exemple 12,50.');
+    expect(amountError('0')).toBe('Le montant doit être supérieur à 0 €.');
+    expect(amountError('20000')).toContain('ne peut pas dépasser');
+    expect(amountError('1 000,50')).toBeNull();
+  });
+
+  it('refuse une date future ou avant la période', () => {
+    expect(expenseDateError('2026-11-10', '2026-09-01', '2026-11-09')).toBe('La date ne peut pas être dans le futur.');
+    expect(expenseDateError('2026-08-31', '2026-09-01', '2026-11-09')).toBe('La date est antérieure au début de la période en cours.');
+    expect(expenseDateError('2026-11-09', '2026-09-01', '2026-11-09')).toBeNull();
+    expect(expenseDateError('')).toBe('Indique la date de la dépense.');
+  });
+
+  it('donne la date du jour dans le fuseau local', () => {
+    expect(todayLocal(new Date(2026, 10, 9, 0, 30))).toBe('2026-11-09');
   });
 });

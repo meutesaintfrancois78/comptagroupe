@@ -6,7 +6,7 @@ import { Input, Textarea } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Banner, StepProgress } from '@/components/ui/feedback';
 import { Profile, Unit, Period, ExpenseCategory, PaymentMethod } from '@/types/database';
-import { cn, parseAmount, formatCurrency } from '@/lib/utils';
+import { cn, parseAmount, formatCurrency, amountError, expenseDateError, todayLocal } from '@/lib/utils';
 import { processProofFile, ProcessedProof } from '@/lib/compression';
 import { supabase } from '@/lib/supabase';
 import { categoryIcon } from './ExpenseList';
@@ -69,10 +69,11 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   onCancel,
   onSubmitted,
 }) => {
-  // « Autre » toujours en dernier, comme dans la maquette
+  // Catégories actives seulement, « Autre » toujours en dernier comme dans la maquette
+  const activeCategories = categories.filter((c) => c.is_active !== false);
   const orderedCategories = [
-    ...categories.filter((c) => c.name !== 'Autre'),
-    ...categories.filter((c) => c.name === 'Autre'),
+    ...activeCategories.filter((c) => c.name !== 'Autre'),
+    ...activeCategories.filter((c) => c.name === 'Autre'),
   ];
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -83,7 +84,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('unit_money');
   const [proof, setProof] = useState<ProcessedProof | null>(null);
   const [proofName, setProofName] = useState<string>('');
-  const [date, setDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(() => todayLocal());
   const [comment, setComment] = useState<string>('');
 
   // UI state
@@ -142,7 +143,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   const isAutre = selectedCatObj?.name.toLowerCase() === 'autre';
 
   // Bouton « Dernier motif »
-  const lastMotifCat = lastMotif ? categories.find((c) => c.id === lastMotif.savedCatId) : undefined;
+  const lastMotifCat = lastMotif ? activeCategories.find((c) => c.id === lastMotif.savedCatId) : undefined;
   const lastMotifLabel = lastMotifCat
     ? lastMotifCat.name.toLowerCase() === 'autre' && lastMotif?.savedCustom
       ? lastMotif.savedCustom
@@ -180,9 +181,9 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   const handleNext = () => {
     setErrorMsg(null);
     if (currentStep === 1) {
-      const parsed = parseAmount(amountInput);
-      if (!parsed || parsed <= 0) {
-        setErrorMsg('Saisis un montant valide, supérieur à 0 €.');
+      const amountMsg = amountError(amountInput);
+      if (amountMsg) {
+        setErrorMsg(amountMsg);
         return;
       }
     }
@@ -225,7 +226,12 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
     }
     const parsedAmount = parseAmount(amountInput);
     if (!parsedAmount || parsedAmount <= 0) {
-      setErrorMsg('Montant invalide.');
+      setErrorMsg(amountError(amountInput) || 'Montant invalide.');
+      return;
+    }
+    const dateMsg = expenseDateError(date, activePeriod?.start_date);
+    if (dateMsg) {
+      setErrorMsg(dateMsg);
       return;
     }
     if (!proof) {
@@ -643,7 +649,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
                 type="date"
                 value={date}
                 min={activePeriod?.start_date || '2026-09-01'}
-                max={new Date().toISOString().split('T')[0]}
+                max={todayLocal()}
                 onChange={(e) => setDate(e.target.value)}
                 className="min-w-0 rounded-[14px] font-medium"
               />

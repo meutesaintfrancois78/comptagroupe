@@ -107,16 +107,26 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({ periods,
   // Créer une nouvelle période
   const handleCreatePeriod = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPeriodName.trim()) return;
+    const name = newPeriodName.trim();
+    if (!name) return;
+    if (periods.some((p) => p.name.trim().toLowerCase() === name.toLowerCase())) {
+      setErrorMsg(`Une période « ${name} » existe déjà.`);
+      return;
+    }
 
+    setErrorMsg(null);
     setIsSubmitting(true);
     try {
-      await supabase.from('periods').insert({
-        name: newPeriodName.trim(),
+      const { error } = await supabase.from('periods').insert({
+        name,
         type: newPeriodType,
         status: 'open',
         start_date: new Date().toISOString().split('T')[0],
       });
+      if (error) {
+        setErrorMsg(`Création impossible : ${error.message}`);
+        return;
+      }
       setNewPeriodName('');
       onRefresh();
     } finally {

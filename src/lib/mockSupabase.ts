@@ -446,6 +446,8 @@ export class MockSupabaseClient {
           self.db.periods.push(...inserted);
         } else if (tableName === 'units') {
           self.db.units.push(...inserted);
+        } else if (tableName === 'expense_categories') {
+          self.db.categories.push(...inserted);
         } else if (tableName === 'expense_history') {
           self.db.history.push(...inserted);
         }
@@ -463,7 +465,7 @@ export class MockSupabaseClient {
                   Object.keys(updates).forEach((k) => {
                     if (item[k as keyof Expense] !== updates[k]) {
                       self.db.history.push({
-                        id: 'hist-' + Date.now(),
+                        id: 'hist-' + Date.now() + '-' + k,
                         expense_id: item.id,
                         changed_by: self.db.currentUser?.id || null,
                         changed_at: new Date().toISOString(),
@@ -495,6 +497,15 @@ export class MockSupabaseClient {
                   return updatedItem;
                 }
                 return p;
+              });
+            } else if (tableName === 'units' || tableName === 'expense_categories') {
+              const key = tableName === 'units' ? 'units' : 'categories';
+              (self.db as any)[key] = (self.db as any)[key].map((u: any) => {
+                if (u[col] === val) {
+                  updatedItem = { ...u, ...updates };
+                  return updatedItem;
+                }
+                return u;
               });
             } else if (tableName === 'periods') {
               self.db.periods = self.db.periods.map((p) => {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Unit, ExpenseCategory } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/feedback';
+import { Banner, Switch } from '@/components/ui/feedback';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
@@ -31,23 +31,37 @@ function ManagerBlock({
   items: BlockItem[];
   addLabel: string;
   placeholder: string;
-  onToggle: (item: BlockItem) => void;
-  onAdd: (name: string) => Promise<void>;
+  /** Renvoient un message d'erreur, ou null si tout s'est bien passé */
+  onToggle: (item: BlockItem) => Promise<string | null>;
+  onAdd: (name: string) => Promise<string | null>;
 }) {
   const [value, setValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = value.trim();
     if (!name) return;
+    if (items.some((it) => it.name.trim().toLowerCase() === name.toLowerCase())) {
+      setErrorMsg(`« ${name} » existe déjà.`);
+      return;
+    }
+    setErrorMsg(null);
     setIsSubmitting(true);
     try {
-      await onAdd(name);
-      setValue('');
+      const error = await onAdd(name);
+      if (error) setErrorMsg(error);
+      else setValue('');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleToggle = async (item: BlockItem) => {
+    setErrorMsg(null);
+    const error = await onToggle(item);
+    if (error) setErrorMsg(error);
   };
 
   return (
@@ -61,12 +75,13 @@ function ManagerBlock({
             </span>
             <Switch
               checked={it.is_active}
-              onChange={() => onToggle(it)}
+              onChange={() => handleToggle(it)}
               label={`${it.name} : ${it.is_active ? 'active' : 'inactive'}`}
             />
           </li>
         ))}
       </ul>
+      {errorMsg && <Banner tone="error">{errorMsg}</Banner>}
       <form onSubmit={handleSubmit} className="flex gap-2 border-t-2 border-divider pt-2">
         <Input
           aria-label={addLabel}
@@ -93,24 +108,31 @@ export const AdminUnitCategoryManager: React.FC<AdminUnitCategoryManagerProps> =
   categories,
   onRefresh,
 }) => {
-  const handleCreateUnit = async (name: string) => {
-    await supabase.from('units').insert({ name, is_active: true });
+  // Chaque écriture renvoie l'erreur éventuelle de la base pour l'afficher sous le bloc
+  const done = (error: { message?: string } | null | undefined, action: string) => {
+    if (error) return `${action} impossible : ${error.message || 'erreur inconnue'}`;
     onRefresh();
+    return null;
+  };
+
+  const handleCreateUnit = async (name: string) => {
+    const { error } = await supabase.from('units').insert({ name, is_active: true });
+    return done(error, "Ajout de l'unité");
   };
 
   const handleCreateCategory = async (name: string) => {
-    await supabase.from('expense_categories').insert({ name, is_active: true });
-    onRefresh();
+    const { error } = await supabase.from('expense_categories').insert({ name, is_active: true });
+    return done(error, 'Ajout de la catégorie');
   };
 
   const handleToggleUnitActive = async (unit: BlockItem) => {
-    await supabase.from('units').update({ is_active: !unit.is_active }).eq('id', unit.id);
-    onRefresh();
+    const { error } = await supabase.from('units').update({ is_active: !unit.is_active }).eq('id', unit.id);
+    return done(error, "Modification de l'unité");
   };
 
   const handleToggleCategoryActive = async (cat: BlockItem) => {
-    await supabase.from('expense_categories').update({ is_active: !cat.is_active }).eq('id', cat.id);
-    onRefresh();
+    const { error } = await supabase.from('expense_categories').update({ is_active: !cat.is_active }).eq('id', cat.id);
+    return done(error, 'Modification de la catégorie');
   };
 
   return (

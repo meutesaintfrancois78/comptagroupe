@@ -161,13 +161,13 @@ const AppContent: React.FC = () => {
   }, [profile?.role, selectedPeriodId]);
 
   useEffect(() => {
-    if (profile) {
-      loadData();
-      if (!activeUnitId && profile.primary_unit_id) {
-        setActiveUnitId(profile.primary_unit_id);
-      }
-    }
-  }, [profile, loadData, activeUnitId]);
+    if (profile) loadData();
+  }, [profile, loadData]);
+
+  // Nouveau compte connecté (sans rechargement de la page) : repartir de son unité principale
+  useEffect(() => {
+    setActiveUnitId(profile?.primary_unit_id ?? null);
+  }, [profile?.id, profile?.primary_unit_id]);
 
   // Écoute de l'URL hash ou path pour la sandbox secrète (/admin/test-sandbox-secrete)
   useEffect(() => {
@@ -247,8 +247,10 @@ const AppContent: React.FC = () => {
   };
 
   // Unité active du chef
+  // Un chef ne peut afficher qu'une de ses unités, même si l'état garde une ancienne valeur
+  const myUnitIds = [profile.primary_unit_id, profile.secondary_unit_id].filter(Boolean);
   const currentUnit =
-    units.find((u) => u.id === activeUnitId) ||
+    units.find((u) => u.id === activeUnitId && (profile.role === 'admin' || myUnitIds.includes(u.id))) ||
     units.find((u) => u.id === profile.primary_unit_id) ||
     units[0] || { id: 'u1', name: 'Meute 1', is_active: true, created_at: '' };
 

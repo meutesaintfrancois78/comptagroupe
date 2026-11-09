@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/input';
 import { Banner } from '@/components/ui/feedback';
 import { Expense, ExpenseCategory, PaymentMethod, Unit } from '@/types/database';
-import { cn, parseAmount } from '@/lib/utils';
+import { cn, parseAmount, amountError, expenseDateError, todayLocal } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { buildExpenseUpdatePayload } from '@/lib/permissions';
 
@@ -50,7 +50,7 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
 
   useEffect(() => {
     if (expense) {
-      setAmount(expense.amount.toString().replace('.', ','));
+      setAmount(Number(expense.amount).toFixed(2).replace('.', ','));
       setDate(expense.date);
       setCategoryId(expense.category_id || categories[0]?.id || '');
       setCustomCategory(expense.custom_category || '');
@@ -74,7 +74,12 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
     if (isLockedForChef) return;
     const parsed = parseAmount(amount);
     if (!parsed || parsed <= 0) {
-      setErrorMsg('Saisis un montant valide.');
+      setErrorMsg(amountError(amount) || 'Saisis un montant valide.');
+      return;
+    }
+    const dateMsg = expenseDateError(date);
+    if (dateMsg) {
+      setErrorMsg(dateMsg);
       return;
     }
     if (isAutre && !customCategory.trim()) {
@@ -162,6 +167,7 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
                 type="date"
                 required
                 value={date}
+                max={todayLocal()}
                 onChange={(e) => setDate(e.target.value)}
                 className={cn(editField, 'px-2 text-[15px] font-medium')}
               />
@@ -194,7 +200,7 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
               onChange={(e) => setCategoryId(e.target.value)}
               className={cn(editField, 'font-medium')}
             >
-              {categories.map((c) => (
+              {categories.filter((c) => c.is_active !== false || c.id === expense.category_id).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
