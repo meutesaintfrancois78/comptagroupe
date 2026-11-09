@@ -37,6 +37,7 @@ const DEFAULT_PERIODS: Period[] = [
 const DEFAULT_PROFILES: Profile[] = [
   {
     id: 'user-admin-1',
+    email: 'benoit.dupont@exemple.fr',
     first_name: 'Benoît',
     last_name: 'Dupont',
     role: 'admin',
@@ -48,6 +49,7 @@ const DEFAULT_PROFILES: Profile[] = [
   },
   {
     id: 'user-admin-2',
+    email: 'marie.vasseur@exemple.fr',
     first_name: 'Marie',
     last_name: 'Vasseur',
     role: 'admin',
@@ -59,6 +61,7 @@ const DEFAULT_PROFILES: Profile[] = [
   },
   {
     id: 'user-chef-1',
+    email: 'guillaume.martin@exemple.fr',
     first_name: 'Guillaume',
     last_name: 'Martin',
     role: 'chef',
@@ -70,6 +73,7 @@ const DEFAULT_PROFILES: Profile[] = [
   },
   {
     id: 'user-chef-2',
+    email: 'thomas.bernard@exemple.fr',
     first_name: 'Thomas',
     last_name: 'Bernard',
     role: 'chef',
@@ -81,6 +85,7 @@ const DEFAULT_PROFILES: Profile[] = [
   },
   {
     id: 'user-chef-3',
+    email: 'sophie.legrand@exemple.fr',
     first_name: 'Sophie',
     last_name: 'Legrand',
     role: 'chef',
@@ -92,6 +97,7 @@ const DEFAULT_PROFILES: Profile[] = [
   },
   {
     id: 'user-chef-pending-1',
+    email: 'claire.lemoine@exemple.fr',
     first_name: 'Claire',
     last_name: 'Lemoine',
     role: 'chef',
@@ -103,6 +109,7 @@ const DEFAULT_PROFILES: Profile[] = [
   },
   {
     id: 'user-chef-pending-2',
+    email: 'alexandre.petit@exemple.fr',
     first_name: 'Alexandre',
     last_name: 'Petit',
     role: 'chef',
@@ -114,6 +121,7 @@ const DEFAULT_PROFILES: Profile[] = [
   },
   {
     id: 'user-chef-deactivated',
+    email: 'julien.moreau@exemple.fr',
     first_name: 'Julien',
     last_name: 'Moreau',
     role: 'chef',
@@ -293,10 +301,12 @@ export class MockSupabaseClient {
       },
       signInWithPassword: async ({ email }: { email: string; password?: string }) => {
         // Seulement la partie avant @ : le domaine « saint-martin » contient « martin » (Guillaume Martin)
-        const local = email.toLowerCase().split('@')[0];
+        // Sans accents : « benoit@… » doit trouver « Benoît »
+        const plain = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+        const local = plain(email.split('@')[0]);
         const found = this.db.profiles.find((p) =>
-          local.includes(p.first_name.toLowerCase()) ||
-          local.includes(p.last_name.toLowerCase()) ||
+          local.includes(plain(p.first_name)) ||
+          local.includes(plain(p.last_name)) ||
           (p.role === 'admin' && local.includes('admin'))
         );
         if (found) {
