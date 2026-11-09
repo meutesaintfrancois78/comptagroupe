@@ -196,7 +196,9 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
         .upload(filePath, proof.file);
 
       if (uploadError) {
-        console.warn('Upload error, continuing with fallback path:', uploadError);
+        throw new Error(
+          `Impossible d'enregistrer le justificatif (${uploadError.message}). L'envoi est bloqué conformément à l'obligation comptable.`
+        );
       }
 
       // 2. Insertion de la dépense
@@ -326,9 +328,11 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
             </span>
             <div className="relative mt-4 flex items-center justify-center">
               <input
+                id="expense-amount"
                 type="text"
                 inputMode="decimal"
                 autoFocus
+                aria-label="Montant de la dépense en euros"
                 placeholder="0,00"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
@@ -513,25 +517,40 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
                 </label>
               </div>
             ) : (
-              <div className="py-6">
-                <label className="cursor-pointer block border-2 border-dashed border-primary/40 rounded-3xl p-8 hover:bg-accent transition-colors">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
-                    <Camera className="w-8 h-8" />
-                  </div>
-                  <div className="font-bold text-foreground text-base">
-                    Prendre en photo ou choisir un fichier
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Photo directe appareil, galerie ou document PDF
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    capture="environment"
-                    className="hidden"
-                    onChange={handleProofChange}
-                  />
-                </label>
+              <div className="py-4 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Option 1 : Prendre une photo directe */}
+                  <label className="cursor-pointer border-2 border-dashed border-primary/40 rounded-2xl p-5 hover:bg-accent transition-colors flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <span className="font-bold text-sm text-foreground">Prendre une photo</span>
+                    <span className="text-[11px] text-muted-foreground mt-0.5">Appareil photo direct</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={handleProofChange}
+                    />
+                  </label>
+
+                  {/* Option 2 : Choisir un fichier / PDF / Galerie */}
+                  <label className="cursor-pointer border-2 border-dashed border-muted-foreground/30 rounded-2xl p-5 hover:bg-accent transition-colors flex flex-col items-center justify-center text-center">
+                    <div className="w-12 h-12 rounded-full bg-muted text-foreground flex items-center justify-center mb-2">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <span className="font-bold text-sm text-foreground">Choisir un fichier</span>
+                    <span className="text-[11px] text-muted-foreground mt-0.5">Galerie photo ou PDF</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={handleProofChange}
+                    />
+                  </label>
+                </div>
+
                 {isCompressing && (
                   <p className="text-xs text-primary font-semibold mt-3 animate-pulse">
                     Compression automatique de l'image en cours...
@@ -586,12 +605,15 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
 
             {/* Date modifiable */}
             <div>
-              <label className="block text-xs font-bold text-muted-foreground mb-1">
+              <label htmlFor="expense-date" className="block text-xs font-bold text-muted-foreground mb-1">
                 Date de la dépense :
               </label>
               <Input
+                id="expense-date"
                 type="date"
                 value={date}
+                min={activePeriod?.start_date || '2026-09-01'}
+                max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setDate(e.target.value)}
                 className="font-medium"
               />
@@ -599,11 +621,13 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
 
             {/* Commentaire facultatif n'apparaît qu'à cette étape */}
             <div>
-              <label className="block text-xs font-bold text-muted-foreground mb-1">
+              <label htmlFor="expense-comment" className="block text-xs font-bold text-muted-foreground mb-1">
                 Commentaire facultatif :
               </label>
               <Input
+                id="expense-comment"
                 type="text"
+                maxLength={300}
                 placeholder="Ex : Remplace le matériel cassé au dernier jeu"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}

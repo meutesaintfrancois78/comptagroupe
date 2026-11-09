@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { History, Clock, ArrowRight } from 'lucide-react';
 import { Dialog } from '@/components/ui/dialog';
 import { ExpenseHistory } from '@/types/database';
+import { formatCurrency } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
 interface ExpenseHistoryModalProps {
@@ -43,7 +44,7 @@ export const ExpenseHistoryModal: React.FC<ExpenseHistoryModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Historique des modifications"
-      description={expenseAmount ? `Dépense de ${expenseAmount} €` : undefined}
+      description={expenseAmount !== undefined ? `Dépense de ${formatCurrency(expenseAmount)}` : undefined}
       className="max-w-md"
     >
       <div className="py-2">

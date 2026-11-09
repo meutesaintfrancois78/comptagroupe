@@ -125,6 +125,41 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     }
   };
 
+  const handleAcceptUnitChange = async (profile: Profile) => {
+    if (!profile.requested_unit_id) return;
+    setErrorMsg(null);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        primary_unit_id: profile.requested_unit_id,
+        requested_unit_id: null,
+      })
+      .eq('id', profile.id);
+
+    if (error) {
+      setErrorMsg(error.message || "Erreur lors du transfert d'unité.");
+    } else {
+      setSuccessMsg(`Mutation de ${profile.first_name} validée avec succès.`);
+      onRefresh();
+    }
+  };
+
+  const handleRejectUnitChange = async (profile: Profile) => {
+    setErrorMsg(null);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ requested_unit_id: null })
+      .eq('id', profile.id);
+
+    if (error) {
+      setErrorMsg(error.message || 'Erreur lors du refus de mutation.');
+    } else {
+      setSuccessMsg(`Demande de mutation de ${profile.first_name} refusée.`);
+      onRefresh();
+    }
+  };
+
+
   return (
     <div className="space-y-4">
       {errorMsg && (
@@ -196,6 +231,10 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   )}
                 </div>
 
+                <div className="text-xs text-muted-foreground font-mono mt-0.5">
+                  {p.email || 'Email non renseigné'}
+                </div>
+
                 <div className="text-xs text-muted-foreground mt-1 space-x-2">
                   <span>
                     Unité principale : <strong className="text-foreground">{primaryUnitName}</strong>
@@ -206,6 +245,33 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                     </span>
                   )}
                 </div>
+
+                {p.requested_unit_id && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+                    <div className="text-xs text-amber-800 dark:text-amber-300">
+                      📢 <strong>Demande de mutation :</strong> souhaite passer à{' '}
+                      <strong>{units.find((u) => u.id === p.requested_unit_id)?.name || 'Inconnue'}</strong>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleAcceptUnitChange(p)}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-7 px-2 font-bold"
+                      >
+                        Accepter
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRejectUnitChange(p)}
+                        className="text-xs h-7 px-2 text-destructive border-destructive/30"
+                      >
+                        Refuser
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions d'administration */}

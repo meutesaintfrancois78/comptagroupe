@@ -175,16 +175,28 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
 
                   {/* Actions (Modifier & Historique) - Jamais de suppression côté chef ! */}
                   <div className="flex items-center space-x-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedForEdit(exp)}
-                      title="Modifier la dépense"
-                      className="h-9 px-2.5 text-xs"
-                    >
-                      <Edit2 className="w-3.5 h-3.5 mr-1" />
-                      Modifier
-                    </Button>
+                    {exp.reimbursement_status === 'reimbursed' ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled
+                        title="Dépense déjà remboursée par la trésorerie (verrouillée)"
+                        className="h-9 px-2 text-xs text-muted-foreground opacity-60 cursor-not-allowed"
+                      >
+                        Verrouillée
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedForEdit(exp)}
+                        title="Modifier la dépense"
+                        className="h-9 px-2.5 text-xs"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 mr-1" />
+                        Modifier
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="ghost"

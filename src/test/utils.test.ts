@@ -24,6 +24,30 @@ describe('Utility Functions TDD', () => {
     it('should reject invalid strings', () => {
       expect(parseAmount('abc')).toBeNull();
       expect(parseAmount('')).toBeNull();
+      expect(parseAmount('12abc')).toBeNull();
+      expect(parseAmount('1e3')).toBeNull();
+      expect(parseAmount('1E3')).toBeNull();
+    });
+
+    it('should accept amounts with spaces like 1 000,50', () => {
+      expect(parseAmount('1 000,50')).toBe(1000.5);
+      expect(parseAmount('1\u00A0000,50')).toBe(1000.5);
+    });
+
+    it('should reject amounts exceeding maximum limit (10 000 €)', () => {
+      expect(parseAmount('10000.01')).toBeNull();
+      expect(parseAmount('50000')).toBeNull();
+      expect(parseAmount('10000')).toBe(10000);
+    });
+  });
+
+  describe('sumAmounts (precision cents)', () => {
+    it('should accurately sum floating point numbers without 0.30000000000000004 bug', () => {
+      // 0.1 + 0.2 in standard JS equals 0.30000000000000004
+      const expenses = [{ amount: 0.1 }, { amount: 0.2 }];
+      // @ts-ignore
+      const { sumAmounts } = require('../lib/utils');
+      expect(sumAmounts(expenses)).toBe(0.3);
     });
   });
 

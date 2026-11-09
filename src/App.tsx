@@ -15,6 +15,7 @@ import { AdminSandboxTest } from '@/pages/AdminSandboxTest';
 import { Button } from '@/components/ui/button';
 import { MartyMascot } from '@/components/shared/MartyMascot';
 import { PWAInstallBanner } from '@/components/shared/PWAInstallBanner';
+import { attachSignedUrls } from '@/lib/storage';
 import { TestTube2 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -62,9 +63,16 @@ export const App: React.FC = () => {
       }
     }
 
-    // 4. Dépenses
-    const { data: expData } = await supabase.from('expenses').select('*').order('date', { ascending: false });
-    if (expData) setExpenses(expData as Expense[]);
+    // 4. Dépenses (avec jointures complètes unité, catégorie, créateur)
+    const { data: expData } = await supabase
+      .from('expenses')
+      .select('*, unit:units(id, name), category:expense_categories(id, name), creator:profiles(id, first_name, last_name, email)')
+      .order('date', { ascending: false });
+
+    if (expData) {
+      const expensesWithSignedUrls = await attachSignedUrls(expData as Expense[]);
+      setExpenses(expensesWithSignedUrls);
+    }
 
     // 5. Profils (si admin)
     if (profile?.role === 'admin') {

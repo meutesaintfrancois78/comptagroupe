@@ -34,21 +34,21 @@ Les captures d'écran ci-dessous ont été générées automatiquement en condit
 
 ### A. Parcours Chef d'Unité (Mobile-First)
 
-| 1. Connexion avec aperçu mot de passe | 2. Accueil Chef & Totaux engagés | 3. Formulaire de saisie en 5 étapes |
+| 1. Connexion avec aperçu mot de passe | 2. Accueil Chef (Meute 1) | 3. Formulaire (Étape Justificatif & Photo) |
 | :---: | :---: | :---: |
-| <img src="docs/screenshots/01_login_mobile.png" width="260" alt="Connexion mobile" /> | <img src="docs/screenshots/02_chef_home_mobile.png" width="260" alt="Accueil chef" /> | <img src="docs/screenshots/03_expense_form_mobile.png" width="260" alt="Saisie dépense" /> |
-| Mascotte Marty, champ email et œil de prévisualisation | Total de l'unité, liste collaborative et bouton rapide | Saisie rapide au pouce avec compression automatique des photos |
+| <img src="docs/screenshots/01_login_mobile.png" width="260" alt="Connexion mobile" /> | <img src="docs/screenshots/02_chef_home_mobile.png" width="260" alt="Accueil chef" /> | <img src="docs/screenshots/03_expense_form_mobile.png" width="260" alt="Saisie dépense justificatif" /> |
+| Mascotte Marty, saisie du compte test et révélation du mot de passe via l'icône œil | Espace Meute 1 avec bouton tactile prioritaire et accès aux dépenses de l'unité | Étape 4 : Choix entre photo appareil direct et fichier/PDF avec compression navigateur |
 
 ---
 
 ### B. Parcours Administrateur (Tableau de Bord & Rôles)
 
 #### 4. Tableau de bord Administrateur (Dépenses, Filtres, Périodes)
-Vue d'ensemble de toutes les unités, filtrage dynamique par unité / chef / statut de remboursement, modification de l'unité des dépenses, export Excel CSV et archive ZIP des justificatifs :
+Vue d'ensemble de toutes les unités, filtrage dynamique par unité / chef / statut de remboursement, modification de l'unité des dépenses, affichage sécurisé des justificatifs avec URLs signées, export Excel CSV et archive ZIP des justificatifs :
 ![Tableau de bord Administrateur](docs/screenshots/04_admin_dashboard_desktop.png)
 
 #### 5. Gestion des Utilisateurs & Rôles
-Affectation d'unité facultative pour les administrateurs (*« Non rattaché (Groupe) »*), validation en 1 clic des chefs en attente, affectation d'une 2e unité et promotion admin avec garde-fou :
+Affichage clair des adresses email pour chaque chef, validation en 1 clic des comptes en attente, acceptation des mutations d'unité, affectation d'une 2e unité et promotion admin avec garde-fou :
 ![Gestion des Comptes et Rôles](docs/screenshots/05_admin_user_management.png)
 
 ---
@@ -58,31 +58,30 @@ Affectation d'unité facultative pour les administrateurs (*« Non rattaché (Gr
 | 6. Compte en Attente de Validation | 7. Mode Hors-Ligne Sécurisé |
 | :---: | :---: |
 | <img src="docs/screenshots/06_pending_account_screen.png" width="300" alt="Compte en attente" /> | <img src="docs/screenshots/07_offline_screen.png" width="300" alt="Mode hors ligne" /> |
-| Message bienveillant invitant le chef à patienter | Blocage automatique de l'envoi sans perte de données, reprise dès retour du réseau |
+| Message bienveillant invitant le nouveau chef à patienter | Badge Hors-ligne actif, mise en cache PWA sans écran blanc, reprise dès retour réseau |
 
 ---
 
 ## 🏕️ 3. Fonctionnalités Détaillées
 
 ### Côté Chef d'Unité
-- **Prise en main immédiate** : Gros bouton tactile prioritaire *"Nouvelle dépense"*, consultation du total engagé de l'unité.
+- **Prise en main immédiate** : Gros bouton tactile prioritaire *"Nouvelle dépense"*, consultation des dépenses déclarées par l'unité.
 - **Formulaire guidé en 5 étapes rapides** :
-  1. *Nom du chef* : Pré-rempli en lecture seule d'après la session.
-  2. *Montant* : Clavier optimisé, virgule acceptée, validation stricte > 0 €.
-  3. *Motif* : Catégories scoutes pré-remplies (*Nourriture, Transport, Matériel, Hébergement, Pharmacie, Autre*) avec mémorisation instantanée du dernier motif.
-  4. *Mode de paiement* : « Argent de l'unité » ou « Argent personnel » (remboursement demandé).
-  5. *Justificatif obligatoire* : Prise de photo directe avec compression automatique dans le navigateur (~1 Mo) ou sélection de PDF (jusqu'à 5 Mo).
-  6. *Validation sécurisée* : Date paramétrable, commentaire libre (sans données nominatives d'enfants), protection anti-double clic.
-- **Collaboration d'unité** : Chaque chef voit toutes les dépenses de son unité avec historique d'audit complet (*qui, quand, ancienne valeur*). Suppression interdite pour les chefs, unité verrouillée.
+  1. *Montant* : Clavier optimisé, virgule et espaces acceptés (`1 000,50 €`), validation stricte > 0 € et plafond à 10 000 €.
+  2. *Motif* : Catégories scoutes (*Nourriture, Transport, Matériel, Hébergement, Pharmacie, Autre*) avec mémorisation instantanée du dernier motif.
+  3. *Mode de paiement* : « Argent de l'unité » (par défaut) ou « Argent personnel » (remboursement demandé).
+  4. *Justificatif obligatoire* : Choix entre prise de photo directe (caméra) ou sélection d'image/PDF (galerie) avec compression automatique dans le navigateur.
+  5. *Récapitulatif & validation* : Chef déclarant pré-rempli, unité, date paramétrable (bornée à la période), commentaire libre (sans données nominatives d'enfants, max 300 caractères), protection anti-double clic.
+- **Collaboration d'unité** : Chaque chef voit toutes les dépenses de son unité avec historique d'audit complet (*qui, quand, ancienne valeur*). Suppression interdite pour les chefs, unité verrouillée, dépenses déjà remboursées non modifiables.
 
 ### Côté Administrateur (Chef de Groupe & Trésorier)
 - **Bannière 3 minutes obligatoire** : Rappel persistant s'imposant tant qu'un compte chef reste en attente de validation.
-- **Édition avancée des dépenses** : Les administrateurs peuvent rectifier le montant, le motif et ont le **droit exclusif de réassigner l'unité** de n'importe quelle dépense.
+- **Édition avancée des dépenses** : Les administrateurs peuvent rectifier le montant, le motif et ont le **droit exclusif de réassigner l'unité** de n'importe quelle dépense, même déjà remboursée.
 - **Rattachement flexible des admins** : Un administrateur peut n'avoir aucune unité principale rattachée (*badge « Non rattaché (Groupe) »*).
 - **Remboursements en 1 clic** : Bascule en « Remboursée » pour les dépenses sur fonds personnels.
-- **Clôture annuelle & Règle légale des 10 ans** : Verrouillage en lecture seule archivée, téléchargement de sauvegarde obligatoire avant clôture, purge sécurisée avec double confirmation.
-- **Exports comptables** :
-  - CSV formaté pour Microsoft Excel FR (séparateur point-virgule, UTF-8 BOM).
+- **Clôture annuelle & Règle légale des 10 ans** : Verrouillage en lecture seule archivée, téléchargement de sauvegarde obligatoire avant clôture, purge interdite sur période active et réservée aux périodes clôturées avec suppression des fichiers de stockage.
+- **Exports comptables sécurisés** :
+  - CSV formaté pour Microsoft Excel FR (séparateur point-virgule, UTF-8 BOM, neutralisation des formules `=+-\@`).
   - ZIP complet des justificatifs renommés proprement : `AAAA-MM-JJ_[Unite]_[Montant]EUR.[ext]`.
 
 ### Mascotte : Marty le bison
@@ -94,20 +93,25 @@ Personnage kawaii original (corps tout rond, yeux brillants, foulard scout vert 
 
 - **Installation en un clic** : Bannière intelligente sur mobile ([`PWAInstallBanner.tsx`](src/components/shared/PWAInstallBanner.tsx)) compatible Android (invite native) et iOS Safari (guidage « Partager ➔ Sur l'écran d'accueil »).
 - **Icônes adaptatives haute résolution** : `icon-192.png`, `icon-512.png`, `icon-maskable.png` et `apple-touch-icon.png` dans `public/icons/`.
-- **Cache App Shell & Hors-ligne** : Service Worker ([`public/sw.js`](public/sw.js)) pré-mettant en cache l'application et les mascottes pour une ouverture instantanée même au fond des bois sans réseau.
+- **Cache App Shell & Hors-ligne** : Service Worker ([`public/sw.js`](public/sw.js)) pré-mettant en cache l'application, les bundles JS/CSS et les mascottes pour une ouverture instantanée même au fond des bois sans réseau.
 
 ---
 
 ## 🛠️ 5. Stack Technique & Méthodologie TDD
 
 - **Frontend & PWA** : React 18, Vite, TypeScript, Tailwind CSS, Radix UI & Lucide Icons.
-- **Développement Piloté par les Tests (TDD)** : **24 tests unitaires passants** exécutés avec **Bun** (`bun test`) :
+- **Développement Piloté par les Tests (TDD)** : **34 tests unitaires passants** exécutés avec **Bun** (`bun test`) :
+  - Parsing strict des montants, rejet notation scientifique / injection, gestion des espaces et sommes en centimes
+  - Protection contre l'injection de formules dans l'export CSV Excel (`=`, `+`, `-`, `@`)
+  - Interdiction pour un chef de modifier une dépense remboursée (droit exclusif admin)
+  - Dé-duplication et filtrage dynamique de la liste des chefs
+  - Interdiction de purge des périodes actives/ouvertes et respect de la règle légale des 10 ans
   - Permissions d'édition des dépenses selon le rôle (Admin vs Chef)
   - Règles d'unité principale nullable pour les admins vs obligatoire pour les chefs
   - Protection du dernier administrateur actif
   - Minuteur de rappel de la bannière 3 minutes
-  - Normalisation et export CSV/ZIP conforme
-  - Validation du formulaire de dépense multi-étapes
+  - Validation complète du formulaire de dépense multi-étapes
+
 - **Backend Serverless** : Supabase PostgreSQL 15, Row Level Security (RLS), GoTrue Auth, Storage privé.
 - **Hébergement** : Vercel Edge Static Delivery.
 

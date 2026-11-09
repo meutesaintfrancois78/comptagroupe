@@ -12,7 +12,7 @@ import {
 import { Expense, ExpenseCategory, Unit, Profile, Period } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, formatDateFr } from '@/lib/utils';
+import { formatCurrency, formatDateFr, sumAmounts, getChefsFilterList } from '@/lib/utils';
 import { ExpenseEditModal } from '@/components/chef/ExpenseEditModal';
 import { ExpenseHistoryModal } from '@/components/shared/ExpenseHistoryModal';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +22,7 @@ interface AdminExpenseTableProps {
   units: Unit[];
   categories: ExpenseCategory[];
   periods: Period[];
+  profiles?: Profile[];
   selectedPeriodId: string;
   onSelectPeriod: (periodId: string) => void;
   onRefresh: () => void;
@@ -34,6 +35,7 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
   units,
   categories,
   periods,
+  profiles,
   selectedPeriodId,
   onSelectPeriod,
   onRefresh,
@@ -52,16 +54,10 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
-  // Liste unique des chefs présents dans les dépenses pour le filtre
+  // Liste unique des chefs présents dans les profils et les dépenses pour le filtre
   const chefsList = useMemo(() => {
-    const map = new Map<string, string>();
-    expenses.forEach((e) => {
-      if (e.creator) {
-        map.set(e.creator.id, `${e.creator.first_name} ${e.creator.last_name}`);
-      }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [expenses]);
+    return getChefsFilterList(expenses, profiles);
+  }, [expenses, profiles]);
 
   // Filtrage des dépenses
   const filteredExpenses = useMemo(() => {
@@ -77,16 +73,18 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
     });
   }, [expenses, filterUnitId, filterChefId, filterReimbursement]);
 
-  // Total recalculé selon le filtre actif
+  // Total recalculé selon le filtre actif (précision centimes)
   const filteredTotal = useMemo(() => {
-    return filteredExpenses.reduce((acc, exp) => acc + exp.amount, 0);
+    return sumAmounts(filteredExpenses.map((exp) => exp.amount));
   }, [filteredExpenses]);
 
-  // Total en attente de remboursement selon le filtre
+  // Total en attente de remboursement selon le filtre (précision centimes)
   const pendingReimbursementTotal = useMemo(() => {
-    return filteredExpenses
-      .filter((e) => e.reimbursement_status === 'pending')
-      .reduce((acc, exp) => acc + exp.amount, 0);
+    return sumAmounts(
+      filteredExpenses
+        .filter((e) => e.reimbursement_status === 'pending')
+        .map((exp) => exp.amount)
+    );
   }, [filteredExpenses]);
 
   // Action : Rembourser (Tout ou rien, passage en "remboursée")
@@ -233,8 +231,8 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
         </div>
       </div>
 
-      {/* Tableau des dépenses dense & réactif */}
-      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
+      {/* Tableau des dépenses (Desktop md:block) */}
+      <div className="hidden md:block bg-card rounded-2xl border shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
@@ -330,14 +328,16 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
                           className="w-8 h-8 rounded-lg bg-muted border inline-flex items-center justify-center hover:opacity-80 overflow-hidden"
                           title="Aperçu du justificatif"
                         >
-                          {exp.proof_path.endsWith('.pdf') ? (
+                          {exp.proof_path?.endsWith('.pdf') ? (
                             <FileText className="w-4 h-4 text-red-600" />
-                          ) : (
+                          ) : exp.signed_proof_url ? (
                             <img
-                              src={exp.signed_proof_url || '/placeholder-receipt.png'}
+                              src={exp.signed_proof_url}
                               alt="Ticket"
                               className="w-full h-full object-cover"
                             />
+                          ) : (
+                            <FileText className="w-4 h-4 text-muted-foreground" />
                           )}
                         </button>
                       </td>
@@ -396,6 +396,142 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Vue Cartes Mobile (visible uniquement sous md:hidden) */}
+      <div className="block md:hidden space-y-3">
+        {filteredExpenses.length === 0 ? (
+          <div className="p-8 text-center text-xs text-muted-foreground bg-card rounded-2xl border">
+            Aucune dépense ne correspond aux filtres sélectionnés.
+          </div>
+        ) : (
+          filteredExpenses.map((exp) => {
+            const motifLabel = exp.custom_category
+              ? `Autre (${exp.custom_category})`
+              : exp.category?.name || 'Motif inconnu';
+            const isPersonal = exp.payment_method === 'personal_money';
+            const isReimbursed = exp.reimbursement_status === 'reimbursed';
+
+            return (
+              <div
+                key={exp.id}
+                className="bg-card rounded-2xl border p-4 shadow-sm space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                      <Badge variant="outline" className="text-[10px] font-bold">
+                        {exp.unit?.name || 'Inconnue'}
+                      </Badge>
+                      <span className="text-[11px] text-muted-foreground font-semibold">
+                        {formatDateFr(exp.date)}
+                      </span>
+                      {isPersonal ? (
+                        <Badge
+                          variant={isReimbursed ? 'success' : 'warning'}
+                          className="text-[10px]"
+                        >
+                          {isReimbursed ? 'Remboursée' : 'À rembourser'}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px]">
+                          Argent unité
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Par <strong>{exp.creator ? `${exp.creator.first_name} ${exp.creator.last_name}` : 'Chef'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-base font-black text-emerald-700 dark:text-emerald-400">
+                      {formatCurrency(exp.amount)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-xs font-semibold text-foreground">
+                  {motifLabel}
+                  {exp.comment && (
+                    <p className="text-[11px] text-muted-foreground font-normal mt-0.5 line-clamp-2">
+                      {exp.comment}
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t flex items-center justify-between">
+                  {/* Justificatif */}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewImageUrl(exp.signed_proof_url || null)}
+                    className="inline-flex items-center space-x-1.5 text-xs text-primary font-bold hover:underline"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Justificatif</span>
+                  </button>
+
+                  <div className="flex items-center space-x-1">
+                    {isPersonal && (
+                      <Button
+                        size="sm"
+                        variant={isReimbursed ? 'outline' : 'secondary'}
+                        onClick={() => handleToggleReimbursed(exp)}
+                        className="h-8 text-[11px] px-2 font-bold"
+                      >
+                        {isReimbursed ? 'Annuler' : 'Rembourser ✓'}
+                      </Button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedForEdit(exp)}
+                      className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+                      title="Modifier"
+                      aria-label="Modifier la dépense"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedForHistory(exp)}
+                      className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+                      title="Historique"
+                      aria-label="Voir l'historique de la dépense"
+                    >
+                      <History className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteExpense(exp.id)}
+                      disabled={isDeleting === exp.id}
+                      className="p-1.5 rounded-lg hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
+                      title="Supprimer la dépense"
+                      aria-label="Supprimer la dépense"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+
+        {/* Résumé Mobile */}
+        <div className="bg-muted/60 rounded-2xl p-4 border text-xs font-bold space-y-1">
+          <div className="flex justify-between items-center text-foreground">
+            <span>Total filtré ({filteredExpenses.length} dépense{filteredExpenses.length > 1 ? 's' : ''}) :</span>
+            <span className="text-base text-emerald-700 dark:text-emerald-400 font-black">
+              {formatCurrency(filteredTotal)}
+            </span>
+          </div>
+          {pendingReimbursementTotal > 0 && (
+            <div className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">
+              Dont {formatCurrency(pendingReimbursementTotal)} à rembourser
+            </div>
+          )}
+        </div>
+      </div>
+
 
       {/* Modale d'édition */}
       <ExpenseEditModal

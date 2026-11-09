@@ -23,6 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   // Détecter si le chef a 2 unités
   const hasMultipleUnits = Boolean(profile?.primary_unit_id && profile?.secondary_unit_id);
+  const primaryUnit = units.find((u) => u.id === profile?.primary_unit_id);
+  const secondaryUnit = units.find((u) => u.id === profile?.secondary_unit_id);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -52,12 +54,13 @@ export const Header: React.FC<HeaderProps> = ({
               value={activeUnitId || ''}
               onChange={(e) => onSelectUnit(e.target.value)}
               className="h-9 rounded-lg border border-input bg-background px-3 py-1 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
+              aria-label="Sélectionner l'unité scoute active"
             >
-              {profile.primary_unit && (
-                <option value={profile.primary_unit.id}>{profile.primary_unit.name}</option>
+              {primaryUnit && (
+                <option value={primaryUnit.id}>{primaryUnit.name}</option>
               )}
-              {profile.secondary_unit && (
-                <option value={profile.secondary_unit.id}>{profile.secondary_unit.name}</option>
+              {secondaryUnit && (
+                <option value={secondaryUnit.id}>{secondaryUnit.name}</option>
               )}
             </select>
           </div>
@@ -95,6 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
                 size="icon"
                 onClick={onLogout}
                 title="Déconnexion"
+                aria-label="Déconnexion"
                 className="text-muted-foreground hover:text-destructive"
               >
                 <LogOut className="h-5 w-5" />

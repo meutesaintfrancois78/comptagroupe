@@ -222,6 +222,18 @@ export class MockSupabaseClient {
   }
 
   private loadDB(): MockDB {
+    if (typeof window !== 'undefined' && import.meta.env.PROD) {
+      // In production, never write or seed mock data to localStorage
+      return {
+        units: [],
+        categories: [],
+        periods: [],
+        profiles: [],
+        expenses: [],
+        history: [],
+        currentUser: null,
+      };
+    }
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
@@ -242,6 +254,7 @@ export class MockSupabaseClient {
   }
 
   public saveDB(customDB?: MockDB) {
+    if (typeof window !== 'undefined' && import.meta.env.PROD) return;
     const toSave = customDB || this.db;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -349,6 +362,19 @@ export class MockSupabaseClient {
         createSignedUrl: async (path: string, _expiresIn: number) => {
           const filename = path.split('/').pop() || path;
           return { data: { signedUrl: `/mock-receipts/${filename}` }, error: null };
+        },
+        createSignedUrls: async (paths: string[], _expiresIn: number) => {
+          return {
+            data: paths.map((path) => ({
+              path,
+              signedUrl: `/mock-receipts/${path.split('/').pop() || path}`,
+              error: null,
+            })),
+            error: null,
+          };
+        },
+        remove: async (_paths: string[]) => {
+          return { data: [], error: null };
         },
       }),
     };

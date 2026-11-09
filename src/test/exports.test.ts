@@ -50,4 +50,29 @@ describe('Exports TDD (CSV & ZIP)', () => {
     const name = normalizeReceiptFileName(sampleExpenses[0], 'jpg');
     expect(name).toBe('2026-10-14_Meute-1_42.50EUR.jpg');
   });
+
+  it('should neutralize Excel formula injection characters in CSV fields', () => {
+    const maliciousExpenses: Expense[] = [
+      {
+        ...sampleExpenses[0],
+        comment: '=1+1 TEST audit Claude - a supprimer',
+      },
+      {
+        ...sampleExpenses[0],
+        id: 'e2',
+        comment: '+cmd|"/C calc"!A0',
+      },
+      {
+        ...sampleExpenses[0],
+        id: 'e3',
+        comment: '@SUM(1+1)',
+      },
+    ];
+
+    const csv = generateCsvContent(maliciousExpenses, ['comment']);
+    // Formulas starting with =, +, -, @ must be neutralized
+    expect(csv).toContain("'=1+1 TEST audit Claude - a supprimer");
+    expect(csv).toContain("'+cmd");
+    expect(csv).toContain("'@SUM(1+1)");
+  });
 });

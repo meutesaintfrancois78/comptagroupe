@@ -61,8 +61,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   return (
     <div className="space-y-6 max-w-6xl mx-auto py-2">
       {/* Barre d'onglets administrative */}
-      <div className="flex border-b overflow-x-auto no-scrollbar space-x-1 sm:space-x-2">
+      <div role="tablist" aria-label="Sections d'administration" className="flex border-b overflow-x-auto no-scrollbar space-x-1 sm:space-x-2">
         <button
+          role="tab"
+          aria-selected={activeTab === 'expenses'}
+          aria-label={`Dépenses (${periodExpenses.length})`}
           onClick={() => setActiveTab('expenses')}
           className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'expenses'
@@ -75,6 +78,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'users'}
+          aria-label={`Comptes et rôles (${profiles.length})`}
           onClick={() => setActiveTab('users')}
           className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'users'
@@ -87,6 +93,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'units_cats'}
+          aria-label="Unités et catégories de dépenses"
           onClick={() => setActiveTab('units_cats')}
           className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'units_cats'
@@ -99,6 +108,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'periods'}
+          aria-label="Gestion des périodes et clôture"
           onClick={() => setActiveTab('periods')}
           className={`flex items-center space-x-2 px-4 py-3 text-xs sm:text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
             activeTab === 'periods'
@@ -118,6 +130,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           units={units}
           categories={categories}
           periods={periods}
+          profiles={profiles}
           selectedPeriodId={selectedPeriodId}
           onSelectPeriod={onSelectPeriod}
           onRefresh={onRefresh}

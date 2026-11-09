@@ -49,11 +49,16 @@ export const CSV_COLUMN_DEFINITIONS: Record<CsvColumnKey, { label: string; getVa
   },
 };
 
-function escapeCsvField(field: string): string {
-  if (field.includes(';') || field.includes('"') || field.includes('\n') || field.includes('\r')) {
-    return `"${field.replace(/"/g, '""')}"`;
+export function escapeCsvField(field: string): string {
+  let safe = field.trim();
+  // Neutralise Excel formula execution (CWE-1236 CSV Formula Injection)
+  if (/^[=+\-@\t\r]/.test(safe)) {
+    safe = `'${safe}`;
   }
-  return field;
+  if (safe.includes(';') || safe.includes('"') || safe.includes('\n') || safe.includes('\r')) {
+    return `"${safe.replace(/"/g, '""')}"`;
+  }
+  return safe;
 }
 
 export function generateCsvContent(

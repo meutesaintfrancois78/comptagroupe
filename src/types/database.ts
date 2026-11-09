@@ -31,12 +31,14 @@ export interface ExpenseCategory {
 
 export interface Profile {
   id: string;
+  email?: string | null;
   first_name: string;
   last_name: string;
   role: UserRole;
   status: AccountStatus;
   primary_unit_id: string | null;
   secondary_unit_id: string | null;
+  requested_unit_id?: string | null;
   primary_unit?: Unit | null;
   secondary_unit?: Unit | null;
   created_at: string;

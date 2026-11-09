@@ -52,6 +52,9 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
 
   if (!expense) return null;
 
+  const isRefunded = expense.reimbursement_status === 'reimbursed';
+  const isLockedForChef = isRefunded && !isAdmin;
+
   const selectedCat = categories.find((c) => c.id === categoryId);
   const isAutre = selectedCat?.name.toLowerCase() === 'autre';
 
@@ -117,6 +120,12 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
       className="max-w-md"
     >
       <form onSubmit={handleSave} className="space-y-4 pt-2">
+        {isLockedForChef && (
+          <div className="p-3 bg-amber-500/15 text-amber-800 dark:text-amber-300 rounded-xl text-xs font-semibold">
+            🔒 Cette dépense a déjà été remboursée par la trésorerie. Elle est verrouillée en lecture seule pour les chefs d'unité.
+          </div>
+        )}
+
         {errorMsg && (
           <div className="p-3 bg-destructive/15 text-destructive rounded-xl text-xs font-semibold">
             {errorMsg}
@@ -224,11 +233,13 @@ export const ExpenseEditModal: React.FC<ExpenseEditModalProps> = ({
 
         <div className="pt-4 flex justify-end space-x-2">
           <Button type="button" variant="outline" onClick={onClose}>
-            Annuler
+            {isLockedForChef ? 'Fermer' : 'Annuler'}
           </Button>
-          <Button type="submit" variant="default" isLoading={isLoading}>
-            Enregistrer les modifications
-          </Button>
+          {!isLockedForChef && (
+            <Button type="submit" variant="default" isLoading={isLoading}>
+              Enregistrer les modifications
+            </Button>
+          )}
         </div>
       </form>
     </Dialog>

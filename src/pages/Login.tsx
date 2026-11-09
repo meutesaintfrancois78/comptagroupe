@@ -153,12 +153,14 @@ export const Login: React.FC = () => {
             {mode === 'login' && (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  <label htmlFor="login-email" className="block text-xs font-semibold text-muted-foreground mb-1">
                     Adresse email
                   </label>
                   <Input
+                    id="login-email"
                     type="email"
                     required
+                    autoComplete="email"
                     placeholder="chef@groupe-saint-martin.fr"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -167,7 +169,7 @@ export const Login: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-xs font-semibold text-muted-foreground">
+                    <label htmlFor="login-password" className="text-xs font-semibold text-muted-foreground">
                       Mot de passe
                     </label>
                     <button
@@ -180,8 +182,10 @@ export const Login: React.FC = () => {
                   </div>
                   <div className="relative">
                     <Input
+                      id="login-password"
                       type={showPassword ? 'text' : 'password'}
                       required
+                      autoComplete="current-password"
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -233,24 +237,28 @@ export const Login: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                    <label htmlFor="reg-firstname" className="block text-xs font-semibold text-muted-foreground mb-1">
                       Prénom réel
                     </label>
                     <Input
+                      id="reg-firstname"
                       type="text"
                       required
+                      autoComplete="given-name"
                       placeholder="Alexandre"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                    <label htmlFor="reg-lastname" className="block text-xs font-semibold text-muted-foreground mb-1">
                       Nom réel
                     </label>
                     <Input
+                      id="reg-lastname"
                       type="text"
                       required
+                      autoComplete="family-name"
                       placeholder="Dupont"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
@@ -259,10 +267,11 @@ export const Login: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  <label htmlFor="reg-unit" className="block text-xs font-semibold text-muted-foreground mb-1">
                     Ton unité scoute
                   </label>
                   <select
+                    id="reg-unit"
                     value={primaryUnitId}
                     onChange={(e) => setPrimaryUnitId(e.target.value)}
                     className="h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
@@ -276,12 +285,14 @@ export const Login: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  <label htmlFor="reg-email" className="block text-xs font-semibold text-muted-foreground mb-1">
                     Adresse email
                   </label>
                   <Input
+                    id="reg-email"
                     type="email"
                     required
+                    autoComplete="email"
                     placeholder="ton.mail@exemple.fr"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -289,13 +300,15 @@ export const Login: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  <label htmlFor="reg-password" className="block text-xs font-semibold text-muted-foreground mb-1">
                     Mot de passe
                   </label>
                   <div className="relative">
                     <Input
+                      id="reg-password"
                       type={showPassword ? 'text' : 'password'}
                       required
+                      autoComplete="new-password"
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -358,12 +371,14 @@ export const Login: React.FC = () => {
             {mode === 'forgot' && (
               <form onSubmit={handleForgotSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  <label htmlFor="forgot-email" className="block text-xs font-semibold text-muted-foreground mb-1">
                     Adresse email du compte
                   </label>
                   <Input
+                    id="forgot-email"
                     type="email"
                     required
+                    autoComplete="email"
                     placeholder="chef@groupe-saint-martin.fr"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

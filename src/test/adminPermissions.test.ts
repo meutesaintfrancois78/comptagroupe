@@ -79,6 +79,56 @@ describe('Admin Permissions & Unit Editing TDD', () => {
       expect(result.payload.amount).toBe(49.9);
       expect(result.payload.unit_id).toBe('unit-meute-1');
     });
+
+    it('should forbid a chef from modifying an already refunded expense', () => {
+      const refundedExpense: Expense = {
+        ...baseExpense,
+        payment_method: 'personal_money',
+        reimbursement_status: 'reimbursed',
+      };
+
+      const result = buildExpenseUpdatePayload(
+        refundedExpense,
+        {
+          amount: 60.0,
+          date: '2026-11-08',
+          category_id: 'cat-nourriture',
+          custom_category: null,
+          payment_method: 'personal_money',
+          comment: 'Tentative modification remboursé',
+          unit_id: 'unit-meute-1',
+        },
+        'chef'
+      );
+
+      expect(result.allowed).toBe(false);
+      expect(result.error).toContain('Une dépense déjà remboursée ne peut plus être modifiée');
+    });
+
+    it('should allow an admin to modify an already refunded expense', () => {
+      const refundedExpense: Expense = {
+        ...baseExpense,
+        payment_method: 'personal_money',
+        reimbursement_status: 'reimbursed',
+      };
+
+      const result = buildExpenseUpdatePayload(
+        refundedExpense,
+        {
+          amount: 60.0,
+          date: '2026-11-08',
+          category_id: 'cat-nourriture',
+          custom_category: null,
+          payment_method: 'personal_money',
+          comment: 'Correction admin après remboursement',
+          unit_id: 'unit-meute-1',
+        },
+        'admin'
+      );
+
+      expect(result.allowed).toBe(true);
+      expect(result.payload.amount).toBe(60.0);
+    });
   });
 
   describe('Admin Primary Unit nullable rules', () => {

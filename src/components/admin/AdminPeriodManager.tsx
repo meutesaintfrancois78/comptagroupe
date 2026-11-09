@@ -16,6 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { generateCsvContent, downloadCsv } from '@/lib/exportCsv';
 import { generateAndDownloadReceiptsZip } from '@/lib/exportZip';
+import { formatCurrency, sumAmounts } from '@/lib/utils';
+import { canPurgePeriod } from '@/lib/permissions';
 import { supabase } from '@/lib/supabase';
 
 interface AdminPeriodManagerProps {
@@ -98,6 +100,10 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
   // Purge irréversible d'une période (avec export obligatoire avant)
   const handleExecutePurge = async () => {
     if (!periodToPurge || purgeConfirmText.trim() !== 'PURGER') return;
+    if (!canPurgePeriod(periodToPurge)) {
+      alert("Impossible de purger une période active/ouverte. Elle doit d'abord être clôturée.");
+      return;
+    }
 
     setIsPurging(true);
     try {
@@ -111,18 +117,35 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
         `Archive_PrePurge_Justificatifs_${periodToPurge.name.replace(/\s+/g, '_')}.zip`
       );
 
-      // 2. Suppression de toutes les dépenses rattachées
-      for (const exp of periodExpenses) {
-        await supabase.from('expenses').delete().eq('id', exp.id);
+      // 2. Suppression des justificatifs dans le bucket de stockage
+      const proofPaths = periodExpenses
+        .map((e) => e.proof_path)
+        .filter((path): path is string => Boolean(path));
+      if (proofPaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('receipts')
+          .remove(proofPaths);
+        if (storageError) {
+          console.warn('Erreur suppression fichiers storage:', storageError);
+        }
       }
 
-      // 3. Suppression de la période
-      await supabase.from('periods').delete().eq('id', periodToPurge.id);
+      // 3. Suppression de toutes les dépenses rattachées
+      for (const exp of periodExpenses) {
+        const { error: delExpErr } = await supabase.from('expenses').delete().eq('id', exp.id);
+        if (delExpErr) throw delExpErr;
+      }
+
+      // 4. Suppression de la période
+      const { error: delPeriodErr } = await supabase.from('periods').delete().eq('id', periodToPurge.id);
+      if (delPeriodErr) throw delPeriodErr;
 
       setNotification(`Période "${periodToPurge.name}" purgée avec succès après sauvegarde intégrale.`);
       setPeriodToPurge(null);
       setPurgeConfirmText('');
       onRefresh();
+    } catch (err: any) {
+      alert(`Erreur lors de la purge : ${err?.message || 'Erreur inconnue'}`);
     } finally {
       setIsPurging(false);
     }
@@ -181,7 +204,7 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
         {periods.map((p) => {
           const isClosed = p.status === 'closed';
           const periodExpenses = expenses.filter((e) => e.period_id === p.id);
-          const totalAmount = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
+          const totalAmount = sumAmounts(periodExpenses.map((e) => e.amount));
 
           return (
             <div
@@ -206,7 +229,7 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">
                   {periodExpenses.length} dépense(s) déclarée(s) • Total :{' '}
-                  <strong className="text-foreground">{totalAmount.toFixed(2)} €</strong>
+                  <strong className="text-foreground">{formatCurrency(totalAmount)}</strong>
                 </div>
               </div>
 
@@ -250,16 +273,26 @@ export const AdminPeriodManager: React.FC<AdminPeriodManagerProps> = ({
                   </Button>
                 )}
 
-                {/* Purge */}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setPeriodToPurge(p)}
-                  className="text-xs text-muted-foreground hover:text-destructive"
-                  title="Purger définitivement la période"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                {/* Purge : autorisée seulement sur période déjà clôturée */}
+                {isClosed ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setPeriodToPurge(p)}
+                    className="text-xs text-muted-foreground hover:text-destructive"
+                    title="Purger définitivement la période clôturée (sauvegarde auto préalable)"
+                    aria-label="Purger la période"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                ) : (
+                  <span
+                    className="text-[10px] text-muted-foreground/60 italic px-1 cursor-not-allowed select-none"
+                    title="Une période ouverte ne peut pas être purgée. Elle doit d'abord être clôturée."
+                  >
+                    Purge verrouillée
+                  </span>
+                )}
               </div>
             </div>
           );

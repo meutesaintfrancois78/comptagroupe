@@ -1,5 +1,5 @@
 // Service Worker pour l'application PWA Compta Groupe Saint-Martin
-const CACHE_NAME = 'saint-martin-compta-shell-v2';
+const CACHE_NAME = 'saint-martin-compta-shell-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -42,7 +42,36 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request).catch(async () => {
         const cached = await caches.match('/index.html');
-        return cached || new Response('Hors-ligne', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+        return (
+          cached ||
+          new Response('Hors-ligne', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+          })
+        );
+      })
+    );
+    return;
+  }
+
+  // Scripts and styles (Vite bundle assets: cache on the fly to avoid blank screen offline)
+  if (
+    event.request.destination === 'script' ||
+    event.request.destination === 'style' ||
+    event.request.url.includes('/assets/')
+  ) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+        return cachedResponse || fetchPromise;
       })
     );
     return;
@@ -60,13 +89,15 @@ self.addEventListener('fetch', (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-          }
-          return networkResponse;
-        }).catch(() => cachedResponse);
+        return fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
       })
     );
   }

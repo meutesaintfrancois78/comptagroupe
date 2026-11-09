@@ -1,4 +1,4 @@
-import { Expense, UserRole, PaymentMethod } from '@/types/database';
+import { Expense, UserRole, PaymentMethod, Period } from '@/types/database';
 
 export interface ExpenseUpdateInput {
   amount: number;
@@ -32,6 +32,15 @@ export function buildExpenseUpdatePayload(
   updates: ExpenseUpdateInput,
   userRole: UserRole
 ): ExpenseUpdateResult {
+  // Check if expense is already refunded
+  if (originalExpense.reimbursement_status === 'reimbursed' && userRole !== 'admin') {
+    return {
+      allowed: false,
+      payload: {},
+      error: 'Une dépense déjà remboursée ne peut plus être modifiée par un chef d\'unité.',
+    };
+  }
+
   // Check unit modification permission
   if (updates.unit_id && updates.unit_id !== originalExpense.unit_id) {
     if (userRole !== 'admin') {
@@ -101,3 +110,14 @@ export function validateProfileUnitAssignment(
     unitId: normalizedUnitId,
   };
 }
+
+/**
+ * Validates whether a period can be purged.
+ * Active / open periods can NEVER be purged.
+ * Periods must be closed first.
+ */
+export function canPurgePeriod(period: Period | null | undefined): boolean {
+  if (!period) return false;
+  return period.status === 'closed';
+}
+
