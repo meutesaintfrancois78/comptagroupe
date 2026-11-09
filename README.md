@@ -112,3 +112,14 @@ bun run clean:sandbox
 - **Durée de conservation** : 10 ans pour les pièces comptables (Article L123-22 du Code de commerce).
 - **Protection des données** : Accès cloisonné par unité via RLS. Les justificatifs ne sont jamais publics et sont consultés via des URLs signées éphémères.
 - **Protection des mineurs** : Consigne explicite de ne renseigner aucune donnée nominative ou de santé relative aux enfants dans les commentaires libres.
+
+
+---
+
+## ID test
+
+ Les 4 comptes de test (mot de passe universel : Password123!) :
+      • benoit.dupont@groupe-enf.fr : Administrateur / Chef de groupe
+      • marie.vasseur@groupe-enf.fr : Administratrice / Trésorière
+      • guillaume.martin@groupe-enf.fr : Chef actif (Meute 1 & 3)
+      • claire.lemoine@groupe-enf.fr : Chef en attente d'approbation
