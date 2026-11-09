@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Download, Filter, History, Pencil, Trash2 } from 'lucide-react';
 import { Expense, ExpenseCategory, Unit, Profile, Period } from '@/types/database';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ interface AdminExpenseTableProps {
   onExportCsv?: (filteredExpenses: Expense[]) => void;
   onExportZip?: () => void;
   isExportingZip?: boolean;
+  /** Change à chaque clic sur « Voir les remboursements » : filtre sur « À rembourser » */
+  focusReimbursements?: number;
 }
 
 const motifOf = (exp: Expense) =>
@@ -104,11 +106,22 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
   onExportCsv,
   onExportZip,
   isExportingZip,
+  focusReimbursements,
 }) => {
   // Filtres
   const [filterUnitId, setFilterUnitId] = useState<string>('all');
   const [filterChefId, setFilterChefId] = useState<string>('all');
   const [filterReimbursement, setFilterReimbursement] = useState<string>('all');
+  const filtersRef = useRef<HTMLElement>(null);
+
+  // Depuis la fenêtre « Demandes en attente » : n'afficher que les dépenses à rembourser
+  useEffect(() => {
+    if (!focusReimbursements) return;
+    setFilterUnitId('all');
+    setFilterChefId('all');
+    setFilterReimbursement('pending');
+    filtersRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focusReimbursements]);
 
   // Modales
   const [selectedForEdit, setSelectedForEdit] = useState<Expense | null>(null);
@@ -166,7 +179,7 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
     }
     if (newStatus === 'reimbursed') {
       setNotificationMsg(
-        `Dépense de ${exp.creator?.first_name || 'chef'} marquée comme remboursée (email de confirmation envoyé).`
+        `Dépense de ${exp.creator?.first_name || 'chef'} marquée comme remboursée.`
       );
       setTimeout(() => setNotificationMsg(null), 4000);
     }
@@ -308,7 +321,7 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
       </div>
 
       {/* Filtres : empilés sous 768 px, sur une ligne au-dessus */}
-      <section className="flex flex-col gap-2 rounded-[18px] border-2.5 border-line bg-surface p-3">
+      <section ref={filtersRef} className="flex scroll-mt-4 flex-col gap-2 rounded-[18px] border-2.5 border-line bg-surface p-3">
         <h2 className="flex items-center gap-1.5 text-[15px] font-extrabold">
           <Filter className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
           Filtres dynamiques

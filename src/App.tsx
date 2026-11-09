@@ -18,7 +18,7 @@ import { MartyMascot } from '@/components/shared/MartyMascot';
 import { PWAInstallBanner } from '@/components/shared/PWAInstallBanner';
 import { Banner } from '@/components/ui/feedback';
 import { attachSignedUrls } from '@/lib/storage';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency, sumAmounts } from '@/lib/utils';
 import { TestTube2 } from 'lucide-react';
 
 /** Cadre des écrans pleins (chargement, erreur, profil, accès suspendu) : colonne centrée */
@@ -113,6 +113,7 @@ const AppContent: React.FC = () => {
 
   // Période sélectionnée (admin ou chef)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [focusReimbursements, setFocusReimbursements] = useState(0);
 
   // Modales et routes
   const [isLegalOpen, setIsLegalOpen] = useState(false);
@@ -260,6 +261,18 @@ const AppContent: React.FC = () => {
   // Profils en attente pour l'admin
   const pendingProfiles = allProfiles.filter((p) => p.status === 'pending');
 
+  // Dépenses payées avec l'argent perso d'un chef, pas encore remboursées (toutes périodes)
+  const toReimburse = expenses.filter(
+    (e) => e.payment_method === 'personal_money' && e.reimbursement_status === 'pending'
+  );
+  const openReimbursements = () => {
+    // Si la période affichée n'en contient aucune, passer sur une période qui en a
+    if (!toReimburse.some((e) => e.period_id === selectedPeriodId) && toReimburse[0]) {
+      setSelectedPeriodId(toReimburse[0].period_id);
+    }
+    setFocusReimbursements(Date.now());
+  };
+
   return (
     <div className="flex min-h-dvh flex-col overflow-x-clip bg-bg text-ink">
       {/* Header global */}
@@ -274,12 +287,15 @@ const AppContent: React.FC = () => {
 
       {/* Fenêtre imposée toutes les 3 min : comptes en attente et demandes de changement d'unité */}
       {profile.role === 'admin' &&
-        (pendingProfiles.length > 0 || allProfiles.some((p) => p.requested_unit_id)) &&
+        (pendingProfiles.length > 0 || allProfiles.some((p) => p.requested_unit_id) || toReimburse.length > 0) &&
         !isSandboxOpen && (
         <PendingValidationBanner
           pendingProfiles={pendingProfiles}
           profiles={allProfiles}
           onRefresh={loadData}
+          reimbursementsCount={toReimburse.length}
+          reimbursementsTotal={formatCurrency(sumAmounts(toReimburse))}
+          onOpenReimbursements={openReimbursements}
           units={units}
           onValidate={async (pId, uId) => {
             await supabase.from('profiles').update({ status: 'active', primary_unit_id: uId }).eq('id', pId);
@@ -315,6 +331,7 @@ const AppContent: React.FC = () => {
             selectedPeriodId={selectedPeriodId}
             onSelectPeriod={setSelectedPeriodId}
             onRefresh={loadData}
+            focusReimbursements={focusReimbursements}
           />
         ) : (
           <ChefHome

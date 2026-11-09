@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Clock } from 'lucide-react';
+import { AlertTriangle, Clock, Wallet } from 'lucide-react';
 import { Profile, Unit } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
@@ -50,6 +50,11 @@ interface PendingValidationBannerProps {
   profiles?: Profile[];
   /** Appelé après la validation ou le refus d'une demande de changement d'unité */
   onRefresh?: () => void;
+  /** Dépenses payées avec l'argent perso d'un chef et pas encore remboursées */
+  reimbursementsCount?: number;
+  reimbursementsTotal?: string;
+  /** Ouvre l'onglet Dépenses filtré sur « À rembourser » */
+  onOpenReimbursements?: () => void;
 }
 
 const formatSignupDate = (iso: string) => {
@@ -69,6 +74,9 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
   onReject,
   profiles,
   onRefresh,
+  reimbursementsCount = 0,
+  reimbursementsTotal,
+  onOpenReimbursements,
 }) => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
@@ -77,7 +85,7 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
   const [, setTick] = useState<number>(0);
 
   const unitRequests = profiles ? getUnitChangeRequests(profiles) : [];
-  const totalCount = pendingProfiles.length + unitRequests.length;
+  const totalCount = pendingProfiles.length + unitRequests.length + reimbursementsCount;
   const unitName = (id: string | null | undefined) => units.find((u) => u.id === id)?.name;
 
   // Unité proposée par défaut pour chaque compte en attente
@@ -110,6 +118,20 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
   const handleDismiss = () => {
     localStorage.setItem(BANNER_STORAGE_KEY, calculateDismissUntil().toString());
     setIsOpen(false);
+  };
+
+  // « Ouvrir maintenant » annule le rappel en cours : sinon la vérification de chaque seconde refermerait la fenêtre
+  const handleOpenNow = () => {
+    try {
+      localStorage.removeItem(BANNER_STORAGE_KEY);
+    } catch {}
+    setIsOpen(true);
+  };
+
+  // Aller aux remboursements : la fenêtre se met en pause 3 minutes, le temps de les traiter
+  const handleOpenReimbursements = () => {
+    handleDismiss();
+    onOpenReimbursements?.();
   };
 
   const withProcessing = async (key: string, action: () => Promise<void>) => {
@@ -161,7 +183,7 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
         </span>
         <button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={handleOpenNow}
           className="min-h-[44px] font-extrabold underline underline-offset-2"
         >
           Ouvrir maintenant
@@ -182,7 +204,7 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
           <IconTile color="yellow" size={48} className="rounded-full">
             <AlertTriangle className="h-6 w-6" strokeWidth={2.4} />
           </IconTile>
-          <span className="min-w-0 flex-1 text-[21px] leading-tight">Comptes chefs en attente</span>
+          <span className="min-w-0 flex-1 text-[21px] leading-tight">Demandes en attente</span>
           <span className="flex h-[34px] min-w-[34px] shrink-0 items-center justify-center rounded-full border-2.5 border-on-color bg-green px-2 text-[16px] font-extrabold text-on-color">
             <span className="sr-only">, </span>
             {totalCount}
@@ -191,18 +213,41 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
       }
     >
       <div className="flex flex-col gap-3">
-        <p className="text-[14px] font-medium leading-snug text-muted">
-          Ces chefs ne peuvent rien déclarer tant que leur compte n'est pas validé. Vérifie l'unité avant de
-          valider.
-        </p>
-
         {errorMsg && <Banner tone="error">{errorMsg}</Banner>}
 
-        {pendingProfiles.length === 0 ? (
-          <p className="rounded-[14px] bg-surface2 p-3.5 text-center text-[15px] font-bold">
-            Tous les comptes sont traités.
+        {reimbursementsCount > 0 && (
+          <section aria-labelledby="reimb-title" className="flex flex-col gap-2.5 rounded-[18px] border-2.5 border-line p-3">
+            <div className="flex items-center gap-3">
+              <IconTile color="blue" size={44}>
+                <Wallet className="h-5 w-5" strokeWidth={2.4} />
+              </IconTile>
+              <div className="min-w-0 flex-1">
+                <h3 id="reimb-title" className="text-[17px] font-extrabold leading-tight">
+                  Remboursements à faire
+                </h3>
+                <p className="text-[13px] font-semibold text-muted">
+                  {reimbursementsCount} dépense{reimbursementsCount > 1 ? 's' : ''} payée{reimbursementsCount > 1 ? 's' : ''} avec l'argent perso d'un chef
+                  {reimbursementsTotal ? ` · ${reimbursementsTotal}` : ''}
+                </p>
+              </div>
+            </div>
+            <Button variant="secondary" onClick={handleOpenReimbursements} className={`${choiceButtonClass} shadow-none`}>
+              Voir les remboursements
+            </Button>
+          </section>
+        )}
+
+        {pendingProfiles.length > 0 && (
+          <h3 className="pt-1 text-[17px] font-extrabold">Comptes chefs à valider</h3>
+        )}
+        {pendingProfiles.length > 0 && (
+          <p className="text-[14px] font-medium leading-snug text-muted">
+            Ces chefs ne peuvent rien déclarer tant que leur compte n'est pas validé. Vérifie l'unité avant de
+            valider.
           </p>
-        ) : (
+        )}
+
+        {pendingProfiles.length === 0 ? null : (
           pendingProfiles.map((p) => (
             <div key={p.id} className="flex flex-col gap-2.5 rounded-[18px] border-2.5 border-line p-3">
               <div className="flex flex-col gap-0.5">
@@ -290,7 +335,7 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
 
         <p className="flex items-center gap-2 text-[13px] font-semibold text-muted">
           <Clock className="h-4 w-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
-          Cette fenêtre revient toutes les 3 minutes tant qu'il reste des comptes ou des demandes en attente.
+          Cette fenêtre revient toutes les 3 minutes tant qu'il reste des comptes, des demandes ou des remboursements en attente.
         </p>
         <Button variant="neutral" onClick={handleDismiss}>
           Plus tard (3 min)

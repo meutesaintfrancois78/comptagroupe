@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Expense, ExpenseCategory, Unit, Profile, Period } from '@/types/database';
 import { AdminExpenseTable } from './AdminExpenseTable';
 import { AdminUserManagement } from './AdminUserManagement';
@@ -19,6 +19,8 @@ interface AdminDashboardProps {
   selectedPeriodId: string;
   onSelectPeriod: (periodId: string) => void;
   onRefresh: () => void;
+  /** Change à chaque clic sur « Voir les remboursements » dans la fenêtre des demandes */
+  focusReimbursements?: number;
 }
 
 type AdminTab = 'expenses' | 'users' | 'units_cats' | 'periods';
@@ -40,8 +42,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   selectedPeriodId,
   onSelectPeriod,
   onRefresh,
+  focusReimbursements,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('expenses');
+
+  useEffect(() => {
+    if (focusReimbursements) setActiveTab('expenses');
+  }, [focusReimbursements]);
   const [isExportCsvOpen, setIsExportCsvOpen] = useState(false);
   const [csvExpenses, setCsvExpenses] = useState<Expense[]>([]);
   const [isExportingZip, setIsExportingZip] = useState(false);
@@ -116,6 +123,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               }}
               onExportZip={handleExportZip}
               isExportingZip={isExportingZip}
+              focusReimbursements={focusReimbursements}
             />
           </>
         )}

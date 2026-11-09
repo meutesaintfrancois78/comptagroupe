@@ -68,7 +68,7 @@ Captures prises sur l'appli en mode démo (données d'exemple), en mode sombre s
 | Comptes en attente | Dépenses sur téléphone |
 | :---: | :---: |
 | <img src="docs/screenshots/13_admin_comptes_en_attente.png" width="240" alt="Comptes en attente" /> | <img src="docs/screenshots/14_admin_depenses_mobile.png" width="240" alt="Dépenses sur téléphone" /> |
-| Fenêtre imposée toutes les 3 minutes : nouveaux comptes et changements d'unité | Filtres, cartes, export CSV et ZIP |
+| Fenêtre imposée toutes les 3 minutes : nouveaux comptes, changements d'unité et remboursements | Filtres, cartes, export CSV et ZIP |
 
 **Sur PC : tableau des dépenses**, sans défilement horizontal
 ![Tableau des dépenses sur PC](docs/screenshots/15_admin_depenses_pc.png)
@@ -114,7 +114,7 @@ Avec **Continuer avec Google**, n'importe quel compte Google peut aussi s'inscri
 
 ### Admin
 
-- **Fenêtre « Comptes chefs en attente »**, imposée et rappelée toutes les 3 minutes tant qu'il reste des comptes ou des demandes de changement d'unité.
+- **Fenêtre « Demandes en attente »**, imposée et rappelée toutes les 3 minutes tant qu'il reste des comptes à valider, des demandes de changement d'unité ou des **remboursements à faire** ; « Voir les remboursements » ouvre les dépenses filtrées sur « À rembourser ». Aucun email n'est envoyé pour l'instant.
 - **Dépenses** : filtres par unité, chef et remboursement ; case « Remboursée » pour l'argent perso ; modification, historique, suppression.
 - **Exports** : CSV pour Excel (point-virgule, UTF-8 avec BOM, colonnes au choix, caractères de formule `= + - @` retirés en tête de champ) et ZIP des justificatifs renommés `AAAA-MM-JJ_Unite_MontantEUR.ext`.
 - **Comptes** : email affiché, fiche avec unités, rôle et statut ; impossible de retirer le dernier admin actif.
