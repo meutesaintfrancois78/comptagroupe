@@ -25,9 +25,9 @@ export const MartyMascot: React.FC<MartyMascotProps> = ({
   title,
   subtitle,
 }) => {
-  // Chemin de l'image WebP ou PNG
-  const imagePath = `/src/assets/marty/marty-${expression}.webp`;
-  const pngFallback = `/src/assets/marty/marty-${expression}.png`;
+  // Chemin de l'image WebP ou PNG (servies depuis public/)
+  const imagePath = `/marty/marty-${expression}.webp`;
+  const pngFallback = `/marty/marty-${expression}.png`;
 
   return (
     <div className={cn('flex flex-col items-center justify-center text-center p-4', className)}>
