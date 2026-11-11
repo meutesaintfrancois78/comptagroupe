@@ -56,7 +56,7 @@
   }
 
   * {
-    @apply border-line;
+    border-color: rgb(var(--line));
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -65,7 +65,9 @@
   }
 
   body {
-    @apply bg-bg text-ink font-sans;
+    background-color: rgb(var(--bg));
+    color: rgb(var(--ink));
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
     touch-action: manipulation;
   }
 

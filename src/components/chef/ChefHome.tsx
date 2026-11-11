@@ -5,6 +5,7 @@ import { Profile, Unit, Period, ExpenseCategory, Expense } from '@/types/databas
 import { cn, formatCurrency, sumAmounts } from '@/lib/utils';
 import { ExpenseMultiStepForm } from './ExpenseMultiStepForm';
 import { ExpenseList, categoryIcon, expenseMotif, formatDateShort, shortName } from './ExpenseList';
+import { hasValidProof } from '@/lib/permissions';
 
 interface ChefHomeProps {
   profile: Profile;
@@ -75,6 +76,7 @@ export const ChefHome: React.FC<ChefHomeProps> = ({
         <ExpenseList
           expenses={expenses}
           unit={unit}
+          activePeriod={activePeriod}
           categories={categories}
           onRefresh={onRefresh}
           onNewExpense={() => setView('new_expense')}
@@ -160,6 +162,11 @@ export const ChefHome: React.FC<ChefHomeProps> = ({
                     <span className="text-[13px] font-semibold text-muted">
                       {formatDateShort(exp.date)} · {shortName(exp.creator)}
                     </span>
+                    {!hasValidProof(exp) && (
+                      <span className="text-[12px] font-extrabold text-error">
+                        ⚠️ Ticket manquant
+                      </span>
+                    )}
                   </span>
                   <span className="shrink-0 text-[19px] font-extrabold">{formatCurrency(exp.amount)}</span>
                 </button>

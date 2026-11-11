@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   Bus,
+  Camera,
+  ChevronDown,
+  ChevronUp,
+  Coins,
   Cross,
   Download,
   Ellipsis,
@@ -8,6 +13,7 @@ import {
   History,
   Lock,
   Package,
+  PieChart,
   Plus,
   Receipt,
   ShoppingCart,
@@ -16,12 +22,23 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { Expense, ExpenseCategory, Unit } from '@/types/database';
+import { Expense, ExpenseCategory, Unit, Period } from '@/types/database';
 import { Badge } from '@/components/ui/badge';
 import { MartyMascot } from '@/components/shared/MartyMascot';
 import { formatCurrency, sumAmounts } from '@/lib/utils';
+import { hasValidProof } from '@/lib/permissions';
+import {
+  calculateCategoryBreakdown,
+  calculateBudgetStatus,
+  getUnitBudget,
+  setUnitBudget,
+} from '@/lib/budget';
+import { generateCsvContent, downloadCsv } from '@/lib/exportCsv';
+import { CategoryDonutChart } from '@/components/shared/CategoryDonutChart';
 import { ExpenseEditModal } from './ExpenseEditModal';
 import { ExpenseHistoryModal } from '@/components/shared/ExpenseHistoryModal';
+import { ProofUploadModal } from './ProofUploadModal';
+import { BudgetEditModal } from './BudgetEditModal';
 
 /* ------------------------------------------------------------------ */
 /* Aides d'affichage partagées par l'accueil, la liste et le formulaire */
@@ -84,6 +101,7 @@ const ReceiptDrawing: React.FC = () => (
 interface ExpenseListProps {
   expenses: Expense[];
   unit: Unit;
+  activePeriod?: Period;
   categories: ExpenseCategory[];
   onRefresh: () => void;
   onNewExpense: () => void;
@@ -92,35 +110,210 @@ interface ExpenseListProps {
 export const ExpenseList: React.FC<ExpenseListProps> = ({
   expenses,
   unit,
+  activePeriod,
   categories,
   onRefresh,
   onNewExpense,
 }) => {
   const [selectedForEdit, setSelectedForEdit] = useState<Expense | null>(null);
   const [selectedForHistory, setSelectedForHistory] = useState<Expense | null>(null);
+  const [selectedForProofUpload, setSelectedForProofUpload] = useState<Expense | null>(null);
   const [preview, setPreview] = useState<Expense | null>(null);
 
+  const [showBudgetSection, setShowBudgetSection] = useState<boolean>(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState<boolean>(false);
+
+  const periodId = activePeriod?.id || 'current';
+  const [currentBudget, setCurrentBudget] = useState<number | null>(() => getUnitBudget(unit.id, periodId));
+
+  useEffect(() => {
+    setCurrentBudget(getUnitBudget(unit.id, periodId));
+  }, [unit.id, periodId]);
+
+  const handleSaveBudget = (newBudget: number | null) => {
+    setUnitBudget(unit.id, periodId, newBudget);
+    setCurrentBudget(newBudget);
+  };
+
+  const handleExportCsv = () => {
+    const csvContent = generateCsvContent(expenses);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const unitClean = unit.name.replace(/\s+/g, '_');
+    downloadCsv(`Depenses_${unitClean}_${dateStr}.csv`, csvContent);
+  };
+
   const totalAmount = sumAmounts(expenses);
+  const breakdown = calculateCategoryBreakdown(expenses, categories);
+  const budgetStatus = calculateBudgetStatus(totalAmount, currentBudget);
+
+  const missingProofCount = expenses.filter((e) => !hasValidProof(e)).length;
 
   return (
     <div className="flex flex-col gap-3.5">
-      {/* Total de l'unité */}
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-[22px] border-2.5 border-line bg-green px-[18px] py-4 text-on-color shadow-pop-md">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="text-[20px] font-extrabold leading-tight break-words">{unit.name}</h2>
-          <span className="text-[13px] font-bold">Total engagé</span>
-          <span className="text-[30px] font-extrabold leading-none">{formatCurrency(totalAmount)}</span>
+      {/* Total de l'unité et boutons d'action rapide */}
+      <div className="flex flex-col gap-3.5 rounded-[22px] border-2.5 border-line bg-green px-[18px] py-4 text-on-color shadow-pop-md">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <h2 className="text-[20px] font-extrabold leading-tight break-words">{unit.name}</h2>
+            <span className="text-[13px] font-bold">Total engagé</span>
+            <span className="text-[30px] font-extrabold leading-none">{formatCurrency(totalAmount)}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onNewExpense}
+            className="flex h-11 shrink-0 items-center gap-1.5 rounded-lg border-2.5 border-on-color bg-white px-3 text-[14px] font-extrabold text-on-color active:translate-x-[2px] active:translate-y-[2px]"
+          >
+            <Plus className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+            Nouvelle dépense
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onNewExpense}
-          className="flex h-11 shrink-0 items-center gap-1.5 rounded-lg border-2.5 border-on-color bg-white px-3 text-[14px] font-extrabold text-on-color active:translate-x-[2px] active:translate-y-[2px]"
-        >
-          <Plus className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
-          Nouvelle dépense
-        </button>
+
+        {/* Boutons Export Excel & Accordéon Budget */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-on-color/25 pt-2.5">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={expenses.length === 0}
+            className="flex h-9 items-center gap-1.5 rounded-md border-2 border-on-color bg-white/95 px-2.5 text-[13px] font-extrabold text-on-color hover:bg-white disabled:opacity-50"
+            title="Télécharger toutes les dépenses de l'unité au format Excel (CSV)"
+          >
+            <Download className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
+            Export Excel
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowBudgetSection((prev) => !prev)}
+            className="flex h-9 items-center gap-1.5 rounded-md border-2 border-on-color bg-white/95 px-2.5 text-[13px] font-extrabold text-on-color hover:bg-white ml-auto"
+          >
+            <PieChart className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
+            Budget & Camembert
+            {showBudgetSection ? (
+              <ChevronUp className="h-4 w-4 stroke-[3]" />
+            ) : (
+              <ChevronDown className="h-4 w-4 stroke-[3]" />
+            )}
+          </button>
+        </div>
       </div>
 
+      {/* Alerte globale si des justificatifs sont manquants */}
+      {missingProofCount > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border-2.5 border-line bg-yellow/20 p-3.5 text-ink">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red text-white text-[14px]">
+              ⚠️
+            </span>
+            <span className="text-[13px] font-extrabold leading-snug">
+              {missingProofCount} ticket{missingProofCount > 1 ? 's' : ''} manquant{missingProofCount > 1 ? 's' : ''} à ajouter pour débloquer les remboursements
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Section dépliable : Budget & Répartition (Arthur's feedback) */}
+      {showBudgetSection && (
+        <section
+          aria-label="Analyse du budget et répartition des dépenses"
+          className="flex flex-col gap-4 rounded-[22px] border-2.5 border-line bg-surface p-4 shadow-pop-md"
+        >
+          <div className="flex items-center justify-between gap-2 border-b-2 border-divider pb-3">
+            <div className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow/20 text-yellow border border-line">
+                <Coins className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="text-[16px] font-extrabold text-ink leading-tight">
+                  Gestion du budget
+                </h3>
+                <span className="text-[12px] font-semibold text-muted">
+                  {activePeriod?.name || 'Période en cours'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsBudgetModalOpen(true)}
+              className="flex h-8 items-center gap-1 rounded-lg border-2 border-line bg-surface2 px-2.5 text-[12px] font-extrabold text-ink hover:bg-surface"
+            >
+              {currentBudget ? 'Modifier' : '+ Définir un budget'}
+            </button>
+          </div>
+
+          {/* Jauge de Budget */}
+          {budgetStatus.allocatedBudget ? (
+            <div className="flex flex-col gap-2 rounded-xl border-2 border-divider bg-surface2/50 p-3">
+              <div className="flex items-center justify-between text-[13px] font-bold">
+                <span className="text-muted">Budget alloué :</span>
+                <span className="text-ink font-extrabold">
+                  {formatCurrency(budgetStatus.allocatedBudget)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[13px] font-bold">
+                <span className="text-muted">Total dépensé :</span>
+                <span className="text-ink font-extrabold">
+                  {formatCurrency(budgetStatus.totalSpent)} ({budgetStatus.percentageUsed} %)
+                </span>
+              </div>
+
+              {/* Barre de progression */}
+              <div className="relative h-3 w-full overflow-hidden rounded-full border border-line bg-line/30">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    budgetStatus.isExceeded
+                      ? 'bg-error'
+                      : (budgetStatus.percentageUsed || 0) > 85
+                      ? 'bg-yellow'
+                      : 'bg-green'
+                  }`}
+                  style={{
+                    width: `${Math.min(100, budgetStatus.percentageUsed || 0)}%`,
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[13px] font-extrabold text-ink">
+                  {budgetStatus.isExceeded ? 'Dépassement :' : 'Reste disponible :'}
+                </span>
+                <span
+                  className={`text-[15px] font-extrabold ${
+                    budgetStatus.isExceeded ? 'text-error' : 'text-success'
+                  }`}
+                >
+                  {budgetStatus.isExceeded
+                    ? `+ ${formatCurrency(budgetStatus.overspentAmount)}`
+                    : formatCurrency(budgetStatus.remaining || 0)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-line bg-surface2/30 p-3 text-center">
+              <span className="text-[13px] font-semibold text-muted">
+                Aucune enveloppe limite définie.
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsBudgetModalOpen(true)}
+                className="text-[13px] font-extrabold text-blue hover:underline shrink-0"
+              >
+                Fixer un objectif budgétaire
+              </button>
+            </div>
+          )}
+
+          {/* Camembert SVG Répartition */}
+          <div className="flex flex-col gap-2 pt-2 border-t-2 border-divider">
+            <h4 className="text-[14px] font-extrabold text-ink">
+              Répartition des dépenses
+            </h4>
+            <CategoryDonutChart slices={breakdown} totalAmount={totalAmount} />
+          </div>
+        </section>
+      )}
+
+      {/* Liste des dépenses */}
       {expenses.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-[20px] border-2.5 border-line bg-surface px-5 py-8 text-center">
           <MartyMascot expression="ready" size={80} circle="blue" />
@@ -135,39 +328,56 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
             const isPersonal = exp.payment_method === 'personal_money';
             const isReimbursed = exp.reimbursement_status === 'reimbursed';
             const motif = expenseMotif(exp);
+            const hasProof = hasValidProof(exp);
             const pdf = isPdfPath(exp.proof_path);
 
             return (
               <li key={exp.id}>
-                <article className="flex flex-col gap-2.5 rounded-[20px] border-2.5 border-line bg-surface p-3.5">
+                <article className="flex flex-col gap-2.5 rounded-[20px] border-2.5 border-line bg-surface p-3.5 shadow-pop-sm">
                   <div className="flex items-start gap-3">
-                    <button
-                      type="button"
-                      aria-label={`Voir le justificatif : ${motif}`}
-                      onClick={() => setPreview(exp)}
-                      className="relative flex h-16 w-[52px] shrink-0 flex-col gap-1 overflow-hidden rounded-md border-2 border-on-color bg-white px-1.5 py-[7px] text-on-color"
-                    >
-                      {pdf ? (
-                        <span className="flex flex-1 flex-col items-center justify-center gap-0.5">
-                          <FileText className="h-6 w-6" aria-hidden="true" />
-                          <span className="text-[9px] font-extrabold">PDF</span>
+                    {/* Vignette Justificatif ou Placeholder Sans Ticket */}
+                    {hasProof ? (
+                      <button
+                        type="button"
+                        aria-label={`Voir le justificatif : ${motif}`}
+                        onClick={() => setPreview(exp)}
+                        className="relative flex h-16 w-[52px] shrink-0 flex-col gap-1 overflow-hidden rounded-md border-2 border-on-color bg-white px-1.5 py-[7px] text-on-color"
+                      >
+                        {pdf ? (
+                          <span className="flex flex-1 flex-col items-center justify-center gap-0.5">
+                            <FileText className="h-6 w-6" aria-hidden="true" />
+                            <span className="text-[9px] font-extrabold">PDF</span>
+                          </span>
+                        ) : (
+                          <>
+                            <ReceiptDrawing />
+                            {exp.signed_proof_url && (
+                              <img
+                                src={exp.signed_proof_url}
+                                alt=""
+                                className="absolute inset-0 h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            )}
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedForProofUpload(exp)}
+                        aria-label={`Ajouter le ticket manquant pour : ${motif}`}
+                        className="relative flex h-16 w-[52px] shrink-0 flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-red bg-error-bg/30 text-error hover:bg-error-bg/60 transition-colors"
+                        title="Justificatif manquant. Clique pour ajouter la photo."
+                      >
+                        <Camera className="h-5 w-5" />
+                        <span className="text-[8px] font-extrabold leading-none text-center">
+                          Ticket ?
                         </span>
-                      ) : (
-                        <>
-                          <ReceiptDrawing />
-                          {exp.signed_proof_url && (
-                            <img
-                              src={exp.signed_proof_url}
-                              alt=""
-                              className="absolute inset-0 h-full w-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          )}
-                        </>
-                      )}
-                    </button>
+                      </button>
+                    )}
 
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="text-[16px] font-extrabold leading-tight break-words">{motif}</span>
@@ -182,19 +392,38 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                     <span className="shrink-0 text-[18px] font-extrabold">{formatCurrency(exp.amount)}</span>
                   </div>
 
+                  {/* Ligne des badges et statuts */}
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-divider pt-2.5">
-                    {/* Statut en lecture seule : seul un admin marque une dépense comme remboursée */}
-                    {isPersonal ? (
-                      isReimbursed ? (
-                        <Badge variant="green">Remboursée</Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {isPersonal ? (
+                        isReimbursed ? (
+                          <Badge variant="green">Remboursée</Badge>
+                        ) : (
+                          <Badge variant="yellow">À rembourser</Badge>
+                        )
                       ) : (
-                        <Badge variant="yellow">À rembourser</Badge>
-                      )
-                    ) : (
-                      <Badge variant="green">Unité</Badge>
-                    )}
+                        <Badge variant="green">Unité</Badge>
+                      )}
 
-                    <div className="flex gap-2">
+                      {!hasProof && (
+                        <Badge variant="red" className="text-[12px] font-extrabold">
+                          ⚠️ Justificatif manquant
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!hasProof && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedForProofUpload(exp)}
+                          className="flex h-11 items-center gap-1.5 rounded-lg border-2 border-line bg-yellow/20 px-3 text-[13px] font-extrabold text-ink hover:bg-yellow/30"
+                        >
+                          <Camera className="h-4 w-4" />
+                          Ajouter ticket
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setSelectedForEdit(exp)}
@@ -221,6 +450,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
         </ul>
       )}
 
+      {/* Modales */}
       <ExpenseEditModal
         isOpen={Boolean(selectedForEdit)}
         onClose={() => setSelectedForEdit(null)}
@@ -236,6 +466,21 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
         expenseAmount={selectedForHistory?.amount}
         expenseLabel={selectedForHistory ? expenseMotif(selectedForHistory) : undefined}
         categories={categories}
+      />
+
+      <ProofUploadModal
+        isOpen={Boolean(selectedForProofUpload)}
+        expense={selectedForProofUpload}
+        onClose={() => setSelectedForProofUpload(null)}
+        onSuccess={onRefresh}
+      />
+
+      <BudgetEditModal
+        isOpen={isBudgetModalOpen}
+        unitName={unit.name}
+        currentBudget={currentBudget}
+        onSave={handleSaveBudget}
+        onClose={() => setIsBudgetModalOpen(false)}
       />
 
       <ProofPreview expense={preview} onClose={() => setPreview(null)} />

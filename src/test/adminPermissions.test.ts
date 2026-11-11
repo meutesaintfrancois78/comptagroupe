@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'bun:test';
-import { buildExpenseUpdatePayload, validateProfileUnitAssignment } from '../lib/permissions';
+import {
+  buildExpenseUpdatePayload,
+  validateProfileUnitAssignment,
+  hasValidProof,
+  canReimburseExpense,
+} from '../lib/permissions';
 import { Expense } from '../types/database';
 
 describe('Admin Permissions & Unit Editing TDD', () => {
@@ -161,6 +166,68 @@ describe('Admin Permissions & Unit Editing TDD', () => {
       expect(resValid.isValid).toBe(true);
       expect(resValid.unitId).toBe('unit-compagnie-1');
       expect(resValid.error).toBeUndefined();
+    });
+  });
+
+  describe('Strict Reimbursement & Proof Requirements TDD', () => {
+    it('hasValidProof should return true only when proof_path is a non-empty trimmed string', () => {
+      expect(hasValidProof({ proof_path: 'unit-1/receipt.jpg' })).toBe(true);
+      expect(hasValidProof({ proof_path: '   ' })).toBe(false);
+      expect(hasValidProof({ proof_path: '' })).toBe(false);
+      expect(hasValidProof({ proof_path: null as any })).toBe(false);
+      expect(hasValidProof({ proof_path: undefined })).toBe(false);
+    });
+
+    it('canReimburseExpense should allow reimbursement only if user is admin, personal_money, status is pending, and proof is present', () => {
+      const pendingPersonalWithProof: Expense = {
+        ...baseExpense,
+        payment_method: 'personal_money',
+        reimbursement_status: 'pending',
+        proof_path: 'unit-1/proof.jpg',
+      };
+
+      const resAdmin = canReimburseExpense(pendingPersonalWithProof, 'admin');
+      expect(resAdmin.canReimburse).toBe(true);
+      expect(resAdmin.reason).toBeUndefined();
+    });
+
+    it('canReimburseExpense should STRICTLY block reimbursement when proof is missing or empty', () => {
+      const pendingNoProof: Expense = {
+        ...baseExpense,
+        payment_method: 'personal_money',
+        reimbursement_status: 'pending',
+        proof_path: '',
+      };
+
+      const res = canReimburseExpense(pendingNoProof, 'admin');
+      expect(res.canReimburse).toBe(false);
+      expect(res.reason).toContain('justificatif');
+    });
+
+    it('canReimburseExpense should block reimbursement if user is chef', () => {
+      const pendingPersonalWithProof: Expense = {
+        ...baseExpense,
+        payment_method: 'personal_money',
+        reimbursement_status: 'pending',
+        proof_path: 'unit-1/proof.jpg',
+      };
+
+      const res = canReimburseExpense(pendingPersonalWithProof, 'chef');
+      expect(res.canReimburse).toBe(false);
+      expect(res.reason).toContain('administrateur');
+    });
+
+    it('canReimburseExpense should block reimbursement if expense was paid with unit money', () => {
+      const unitMoneyExpense: Expense = {
+        ...baseExpense,
+        payment_method: 'unit_money',
+        reimbursement_status: 'not_applicable',
+        proof_path: 'unit-1/proof.jpg',
+      };
+
+      const res = canReimburseExpense(unitMoneyExpense, 'admin');
+      expect(res.canReimburse).toBe(false);
+      expect(res.reason).toContain("argent de l'unité");
     });
   });
 });

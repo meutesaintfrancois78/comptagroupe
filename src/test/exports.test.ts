@@ -92,4 +92,11 @@ describe('Exports TDD (CSV & ZIP)', () => {
     expect(lines[1]).toBe('"HYPERLINK(""x"")"');
     expect(lines[2]).toBe('12,50 rendu');
   });
+
+  it('should export all default columns when no column list is passed (Chef export)', () => {
+    const csv = generateCsvContent(sampleExpenses);
+    expect(csv.startsWith('\uFEFF')).toBe(true);
+    expect(csv).toContain('Date;Unité;Chef;Montant;Catégorie;Mode de paiement;Statut remboursement;Commentaire');
+    expect(csv).toContain('14/10/2026;Meute 1;Benoît Dupont;42,50;Nourriture;Argent de l\'unité;Sans objet;"Pain et goûter ""bio"""');
+  });
 });

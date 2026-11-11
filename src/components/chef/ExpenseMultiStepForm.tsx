@@ -84,6 +84,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('unit_money');
   const [proof, setProof] = useState<ProcessedProof | null>(null);
   const [proofName, setProofName] = useState<string>('');
+  const [skipProof, setSkipProof] = useState<boolean>(false);
   const [date, setDate] = useState<string>(() => todayLocal());
   const [comment, setComment] = useState<string>('');
 
@@ -170,6 +171,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
       const processed = await processProofFile(file);
       setProof(processed);
       setProofName(file.name);
+      setSkipProof(false);
     } catch (err: any) {
       setErrorMsg(err.message || 'Erreur lors du traitement du justificatif.');
     } finally {
@@ -205,8 +207,8 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
       } catch {}
     }
     if (currentStep === 4) {
-      if (!proof) {
-        setErrorMsg("Ajoute un justificatif pour passer à l'étape suivante.");
+      if (!proof && !skipProof) {
+        setErrorMsg("Ajoute un justificatif ou choisis de l'ajouter plus tard.");
         return;
       }
     }
@@ -234,8 +236,8 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
       setErrorMsg(dateMsg);
       return;
     }
-    if (!proof) {
-      setErrorMsg('Justificatif manquant.');
+    if (!proof && !skipProof) {
+      setErrorMsg('Justificatif manquant. Ajoute un justificatif ou choisis le mode différé.');
       return;
     }
 
@@ -243,20 +245,24 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
     setErrorMsg(null);
 
     try {
-      // 1. Upload du justificatif (bloquant : pas de dépense sans justificatif)
-      const ext = proof.isPdf ? 'pdf' : 'jpg';
-      const fileName = `${Date.now()}_${unit.name.replace(/\s+/g, '-')}_${parsedAmount}EUR.${ext}`;
-      const filePath = `${unit.id}/${fileName}`;
+      let filePath = '';
 
-      const { error: uploadError } = await supabase.storage.from('receipts').upload(filePath, proof.file);
+      // 1. Upload du justificatif s'il est fourni
+      if (proof) {
+        const ext = proof.isPdf ? 'pdf' : 'jpg';
+        const fileName = `${Date.now()}_${unit.name.replace(/\s+/g, '-')}_${parsedAmount}EUR.${ext}`;
+        filePath = `${unit.id}/${fileName}`;
 
-      if (uploadError) {
-        throw new Error(
-          `Impossible d'enregistrer le justificatif (${uploadError.message}). L'envoi est bloqué conformément à l'obligation comptable.`
-        );
+        const { error: uploadError } = await supabase.storage.from('receipts').upload(filePath, proof.file);
+
+        if (uploadError) {
+          throw new Error(
+            `Impossible d'enregistrer le justificatif (${uploadError.message}). L'envoi est bloqué conformément à l'obligation comptable.`
+          );
+        }
       }
 
-      // 2. Insertion de la dépense
+      // 2. Insertion de la dépense (proof_path = '' si différé)
       const reimbursementStatus = paymentMethod === 'personal_money' ? 'pending' : 'not_applicable';
 
       const { error: insertError } = await supabase.from('expenses').insert({
@@ -266,7 +272,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
         category_id: categoryId,
         custom_category: isAutre ? customCategory.trim() : null,
         payment_method: paymentMethod,
-        proof_path: filePath,
+        proof_path: filePath || '',
         comment: comment.trim() || null,
         reimbursement_status: reimbursementStatus,
         unit_id: unit.id,
@@ -533,7 +539,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
         </>
       )}
 
-      {/* Étape 4 : Justificatif obligatoire */}
+      {/* Étape 4 : Justificatif obligatoire ou différé */}
       {currentStep === 4 && (
         <>
           <div className="flex flex-1 flex-col gap-3.5">
@@ -567,31 +573,70 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
                   />
                 </label>
               </div>
+            ) : skipProof ? (
+              <div className="flex flex-col items-center gap-3.5 rounded-3xl border-2.5 border-line bg-surface p-5 text-center shadow-pop-md">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-line bg-surface2 text-3xl">
+                  ⏳
+                </span>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[19px] font-extrabold text-ink">Justificatif différé</span>
+                  <p className="text-[14px] font-semibold text-muted leading-snug">
+                    Tu déclares cette dépense maintenant et tu pourras ajouter la photo de ton ticket plus tard depuis la liste.
+                  </p>
+                  <p className="text-[13px] font-bold text-red pt-1">
+                    ⚠️ Rappel : aucun remboursement ne sera validé par l'intendance tant que le ticket n'est pas fourni.
+                  </p>
+                </div>
+                <label className="relative mt-2 flex min-h-[46px] cursor-pointer items-center rounded-[14px] border-2.5 border-line bg-surface px-[18px] text-[14px] font-extrabold text-ink hover:bg-surface2">
+                  📸 Prendre la photo maintenant
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="sr-only"
+                    onChange={handleProofChange}
+                  />
+                </label>
+              </div>
             ) : (
-              <label
-                className={cn(
-                  'relative flex min-h-[260px] cursor-pointer flex-col items-center justify-center gap-3.5 rounded-3xl border-3 border-dashed border-line bg-surface p-5 text-center text-ink focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-link min-[400px]:min-h-[300px]',
-                  isCompressing && 'cursor-wait opacity-80'
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className="flex h-20 w-20 items-center justify-center rounded-full border-2.5 border-on-color bg-blue text-on-color"
+              <>
+                <label
+                  className={cn(
+                    'relative flex min-h-[240px] cursor-pointer flex-col items-center justify-center gap-3.5 rounded-3xl border-3 border-dashed border-line bg-surface p-5 text-center text-ink focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-link min-[400px]:min-h-[280px]',
+                    isCompressing && 'cursor-wait opacity-80'
+                  )}
                 >
-                  <Camera className="h-[38px] w-[38px]" strokeWidth={2} />
-                </span>
-                <span className="max-w-[240px] text-[20px] font-extrabold leading-tight">
-                  Prendre en photo ou choisir un fichier
-                </span>
-                <span className="text-[14px] font-semibold text-muted">Ticket, facture ou reçu · photo ou PDF</span>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  className="sr-only"
-                  disabled={isCompressing}
-                  onChange={handleProofChange}
-                />
-              </label>
+                  <span
+                    aria-hidden="true"
+                    className="flex h-20 w-20 items-center justify-center rounded-full border-2.5 border-on-color bg-blue text-on-color"
+                  >
+                    <Camera className="h-[38px] w-[38px]" strokeWidth={2} />
+                  </span>
+                  <span className="max-w-[240px] text-[20px] font-extrabold leading-tight">
+                    Prendre en photo ou choisir un fichier
+                  </span>
+                  <span className="text-[14px] font-semibold text-muted">Ticket, facture ou reçu · photo ou PDF</span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="sr-only"
+                    disabled={isCompressing}
+                    onChange={handleProofChange}
+                  />
+                </label>
+                <div className="flex flex-col items-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSkipProof(true);
+                      setProof(null);
+                      setProofName('');
+                    }}
+                    className="text-[14px] font-extrabold text-muted hover:text-ink underline decoration-line underline-offset-4 p-2 transition-colors"
+                  >
+                    Je n'ai pas le ticket sous la main (ajouter plus tard)
+                  </button>
+                </div>
+              </>
             )}
             {isCompressing && (
               <p role="status" className="text-center text-[14px] font-bold text-muted">
@@ -615,6 +660,12 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
       {currentStep === 5 && (
         <>
           <div className="flex flex-1 flex-col gap-3">
+            {(!proof || skipProof) && (
+              <Banner tone="warning" className="text-[14px] font-bold">
+                ⚠️ Justificatif différé : pense à rajouter ton ticket depuis l'accueil pour pouvoir être remboursé.
+              </Banner>
+            )}
+
             <dl className="m-0 flex flex-col rounded-[22px] border-2.5 border-line bg-surface px-4 py-1.5 shadow-pop-md">
               {[
                 { k: 'Chef', v: <span className="text-[16px] font-bold">{`${profile.first_name} ${profile.last_name}`.trim()}</span> },
@@ -626,6 +677,18 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
                   v: (
                     <Badge variant={paymentMethod === 'personal_money' ? 'blue' : 'green'} className="text-[13px]">
                       {paymentMethod === 'personal_money' ? 'Argent perso' : "Argent de l'unité"}
+                    </Badge>
+                  ),
+                },
+                {
+                  k: 'Justificatif',
+                  v: proof ? (
+                    <Badge variant="green" className="text-[13px] font-bold">
+                      Fourni ({proofName || 'Photo'})
+                    </Badge>
+                  ) : (
+                    <Badge variant="red" className="text-[13px] font-extrabold">
+                      ⚠️ Manquant (différé)
                     </Badge>
                   ),
                 },

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Download, Filter, History, Pencil, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, Download, Filter, History, Pencil, Trash2 } from 'lucide-react';
 import { Expense, ExpenseCategory, Unit, Profile, Period } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { Banner } from '@/components/ui/feedback';
 import { cn, formatCurrency, formatDateFr, sumAmounts, getChefsFilterList } from '@/lib/utils';
+import { hasValidProof } from '@/lib/permissions';
 import { ExpenseEditModal } from '@/components/chef/ExpenseEditModal';
 import { ExpenseHistoryModal } from '@/components/shared/ExpenseHistoryModal';
 import { supabase, isMockMode } from '@/lib/supabase';
@@ -39,6 +40,17 @@ const isPdf = (exp: Expense) => Boolean(exp.proof_path?.toLowerCase().endsWith('
 
 /** Petit dessin de justificatif de la maquette (30 × 38), ou la vignette si l'image est disponible */
 function ReceiptThumb({ exp }: { exp: Expense }) {
+  if (!hasValidProof(exp)) {
+    return (
+      <span
+        aria-hidden="true"
+        title="Justificatif manquant"
+        className="flex h-[38px] w-[30px] flex-col items-center justify-center rounded border-2 border-dashed border-red bg-error-bg/30 text-[10px] font-extrabold text-error"
+      >
+        ⚠️
+      </span>
+    );
+  }
   if (exp.signed_proof_url && !isPdf(exp)) {
     return (
       <img
@@ -243,40 +255,57 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
 
   const reimbursedCheckbox = (exp: Expense, withText: boolean) => {
     const checked = exp.reimbursement_status === 'reimbursed';
+    const hasProof = hasValidProof(exp);
+    const disabled = checked || !hasProof;
+    const title = checked
+      ? 'Remboursement définitif'
+      : !hasProof
+      ? 'Remboursement impossible : justificatif manquant'
+      : undefined;
+
     return (
       <label
         className={cn(
           'inline-flex min-h-[44px] min-w-[44px] items-center gap-2 select-none',
-          checked ? 'cursor-default' : 'cursor-pointer',
+          disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
           !withText && 'justify-center'
         )}
-        title={checked ? 'Remboursement définitif' : undefined}
+        title={title}
       >
         <input
           type="checkbox"
           checked={checked}
-          disabled={checked}
-          onChange={() => !checked && setConfirmReimburse(exp)}
+          disabled={disabled}
+          onChange={() => !disabled && setConfirmReimburse(exp)}
           aria-label={withText ? undefined : `Remboursée : ${motifOf(exp)}`}
-          className={cn('m-0 h-5 w-5 accent-green', checked ? 'cursor-default' : 'cursor-pointer')}
+          className={cn('m-0 h-5 w-5 accent-green', disabled ? 'cursor-not-allowed' : 'cursor-pointer')}
         />
         {withText && <span className="text-[14px] font-bold">Remboursée</span>}
       </label>
     );
   };
 
-  const receiptButton = (exp: Expense) => (
-    <button
-      type="button"
-      onClick={() => setPreview(exp)}
-      disabled={!exp.signed_proof_url}
-      aria-label={`Voir le justificatif : ${motifOf(exp)}`}
-      title={exp.signed_proof_url ? 'Voir le justificatif' : 'Justificatif indisponible'}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-45"
-    >
-      <ReceiptThumb exp={exp} />
-    </button>
-  );
+  const receiptButton = (exp: Expense) => {
+    const hasProof = hasValidProof(exp);
+    return (
+      <button
+        type="button"
+        onClick={() => setPreview(exp)}
+        disabled={!hasProof || !exp.signed_proof_url}
+        aria-label={`Voir le justificatif : ${motifOf(exp)}`}
+        title={
+          !hasProof
+            ? 'Justificatif manquant'
+            : exp.signed_proof_url
+            ? 'Voir le justificatif'
+            : 'Justificatif indisponible'
+        }
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <ReceiptThumb exp={exp} />
+      </button>
+    );
+  };
 
   const actionButtons = (exp: Expense) => (
     <div className="flex gap-1">
@@ -435,10 +464,13 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
           <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {filteredExpenses.map((exp) => {
               const isPersonal = exp.payment_method === 'personal_money';
+              const isReimbursed = exp.reimbursement_status === 'reimbursed';
+              const hasProof = hasValidProof(exp);
+
               return (
                 <li
                   key={exp.id}
-                  className="flex min-w-0 flex-col gap-2 rounded-[18px] border-2.5 border-line bg-surface p-3"
+                  className="flex min-w-0 flex-col gap-2 rounded-[18px] border-2.5 border-line bg-surface p-3.5 shadow-pop-sm"
                 >
                   <div className="flex items-start justify-between gap-2.5">
                     <div className="flex min-w-0 flex-col gap-0.5">
@@ -447,23 +479,72 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
                         {formatDateFr(exp.date)} · {exp.unit?.name || 'Inconnue'} · {chefOf(exp)}
                       </span>
                     </div>
-                    <span className="shrink-0 whitespace-nowrap text-[17px] font-extrabold">
+                    <span className="shrink-0 whitespace-nowrap text-[18px] font-extrabold">
                       {formatCurrency(exp.amount)}
                     </span>
                   </div>
+
                   {exp.comment && (
                     <p className="line-clamp-2 break-words text-[13px] font-medium text-muted">{exp.comment}</p>
                   )}
-                  <div className="flex flex-wrap items-center gap-2">
+
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {payBadge(exp)}
-                    {isPersonal ? (
-                      reimbursedCheckbox(exp, true)
-                    ) : (
-                      <span className="text-[13px] font-semibold text-muted">Pas de remboursement</span>
+                    {!hasProof && (
+                      <Badge variant="red" className="text-[11px] font-extrabold">
+                        ⚠️ Justificatif manquant
+                      </Badge>
+                    )}
+                    {!isPersonal && (
+                      <span className="text-[12px] font-semibold text-muted">Pas de remboursement</span>
                     )}
                   </div>
+
+                  {/* Bouton large ergonomique de remboursement (Retour terrain Arthur Boubou) */}
+                  {isPersonal && (
+                    <div className="pt-2 border-t border-divider flex flex-col gap-1.5">
+                      {!isReimbursed ? (
+                        <Button
+                          variant="primary"
+                          onClick={() => setConfirmReimburse(exp)}
+                          disabled={!hasProof}
+                          title={!hasProof ? 'Remboursement bloqué : aucun justificatif fourni' : undefined}
+                          className={cn(
+                            'w-full justify-center gap-2 font-extrabold min-h-[46px] text-[14px] rounded-[14px]',
+                            !hasProof
+                              ? 'bg-muted/70 text-ink/70 cursor-not-allowed border-2 border-line'
+                              : 'bg-green text-on-color shadow-pop-sm'
+                          )}
+                        >
+                          {!hasProof ? (
+                            <span className="flex items-center gap-1.5 text-center text-[12px]">
+                              ⚠️ Justificatif manquant (remboursement bloqué)
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5">
+                              <Check className="h-4 w-4 stroke-[3]" />
+                              Rembourser {formatCurrency(exp.amount)}
+                            </span>
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2 text-success font-extrabold text-[14px] py-1">
+                          <CheckCircle2 className="h-5 w-5" />
+                          Remboursée ({formatCurrency(exp.amount)})
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between gap-2 border-t-2 border-divider pt-2">
-                    {receiptButton(exp)}
+                    <div className="flex items-center gap-2">
+                      {receiptButton(exp)}
+                      {!hasProof && (
+                        <span className="text-[12px] font-bold text-error">
+                          Pas de reçu
+                        </span>
+                      )}
+                    </div>
                     {actionButtons(exp)}
                   </div>
                 </li>
@@ -516,7 +597,14 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
                     <td className="break-words px-2.5 py-2 font-semibold">{exp.unit?.name || 'Inconnue'}</td>
                     <td className="break-words px-2.5 py-2 font-semibold">{chefOf(exp)}</td>
                     <td className="px-2.5 py-2 font-bold" title={exp.comment || undefined}>
-                      <span className="line-clamp-2 break-words">{motifOf(exp)}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="line-clamp-2 break-words">{motifOf(exp)}</span>
+                        {!hasValidProof(exp) && (
+                          <Badge variant="red" className="text-[10px] font-extrabold py-0 px-1 shrink-0">
+                            Sans reçu
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-2.5 py-2 text-right font-extrabold">
                       {formatCurrency(exp.amount)}

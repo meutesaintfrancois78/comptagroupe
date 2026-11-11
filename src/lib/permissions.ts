@@ -121,3 +121,53 @@ export function canPurgePeriod(period: Period | null | undefined): boolean {
   return period.status === 'closed';
 }
 
+/**
+ * Checks whether an expense has an uploaded proof file path.
+ */
+export function hasValidProof(expense: { proof_path?: string | null }): boolean {
+  return Boolean(expense.proof_path && expense.proof_path.trim() !== '');
+}
+
+/**
+ * Validates whether an expense can be reimbursed.
+ * - Must be requested by an admin
+ * - Must be personal_money
+ * - Must not be already reimbursed
+ * - Must strictly have a valid proof (receipt/invoice)
+ */
+export function canReimburseExpense(
+  expense: Expense,
+  userRole: UserRole
+): { canReimburse: boolean; reason?: string } {
+  if (userRole !== 'admin') {
+    return {
+      canReimburse: false,
+      reason: 'Seul un administrateur peut marquer une dépense comme remboursée.',
+    };
+  }
+
+  if (expense.payment_method !== 'personal_money') {
+    return {
+      canReimburse: false,
+      reason: "Cette dépense a été payée avec l'argent de l'unité, aucun remboursement n'est nécessaire.",
+    };
+  }
+
+  if (expense.reimbursement_status === 'reimbursed') {
+    return {
+      canReimburse: false,
+      reason: 'Cette dépense est déjà remboursée.',
+    };
+  }
+
+  if (!hasValidProof(expense)) {
+    return {
+      canReimburse: false,
+      reason: 'Remboursement impossible : un justificatif est obligatoire pour être remboursé.',
+    };
+  }
+
+  return { canReimburse: true };
+}
+
+
