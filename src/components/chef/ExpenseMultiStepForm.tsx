@@ -10,6 +10,7 @@ import { cn, parseAmount, formatCurrency, amountError, expenseDateError, todayLo
 import { processProofFile, ProcessedProof } from '@/lib/compression';
 import { supabase } from '@/lib/supabase';
 import { categoryIcon } from './ExpenseList';
+import { getChefProofStorageKey, calculateDismissUntil } from '@/lib/bannerTimer';
 
 interface ExpenseMultiStepFormProps {
   profile: Profile;
@@ -284,7 +285,14 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
         throw new Error(insertError.message || "Erreur lors de l'enregistrement de la dépense.");
       }
 
-      // 3. Nettoyage du brouillon local
+      // 3. Si justificatif différé, enclencher le délai de grâce de 3 minutes pour le rappel
+      if (skipProof) {
+        try {
+          localStorage.setItem(getChefProofStorageKey(unit.id), calculateDismissUntil().toString());
+        } catch {}
+      }
+
+      // 4. Nettoyage du brouillon local
       try {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
       } catch {}

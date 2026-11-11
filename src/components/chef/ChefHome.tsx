@@ -15,6 +15,7 @@ interface ChefHomeProps {
   expenses: Expense[];
   isOnline: boolean;
   onRefresh: () => void;
+  requestedView?: 'home' | 'new_expense' | 'list' | null;
 }
 
 /** Nombre de dépenses récentes montrées sur l'accueil (le reste dans « Tout voir ») */
@@ -34,8 +35,15 @@ export const ChefHome: React.FC<ChefHomeProps> = ({
   expenses,
   isOnline,
   onRefresh,
+  requestedView,
 }) => {
   const [view, setView] = useState<'home' | 'new_expense' | 'list'>('home');
+
+  useEffect(() => {
+    if (requestedView) {
+      setView(requestedView);
+    }
+  }, [requestedView]);
 
   // Chaque changement d'écran repart du haut de la page
   useEffect(() => {

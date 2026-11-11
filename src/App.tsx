@@ -8,6 +8,7 @@ import { Login } from '@/pages/Login';
 import { PendingAccountScreen } from '@/components/chef/PendingAccountScreen';
 import { CompleteProfileScreen } from '@/components/chef/CompleteProfileScreen';
 import { ChefHome } from '@/components/chef/ChefHome';
+import { ChefMissingProofBanner } from '@/components/chef/ChefMissingProofBanner';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { PendingValidationBanner } from '@/components/admin/PendingValidationBanner';
 import { OfflineScreen } from '@/components/shared/OfflineScreen';
@@ -19,6 +20,7 @@ import { PWAInstallBanner } from '@/components/shared/PWAInstallBanner';
 import { Banner } from '@/components/ui/feedback';
 import { attachSignedUrls } from '@/lib/storage';
 import { cn, formatCurrency, sumAmounts } from '@/lib/utils';
+import { hasValidProof } from '@/lib/permissions';
 import { TestTube2 } from 'lucide-react';
 
 /** Cadre des écrans pleins (chargement, erreur, profil, accès suspendu) : colonne centrée */
@@ -114,6 +116,7 @@ const AppContent: React.FC = () => {
   // Période sélectionnée (admin ou chef)
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [focusReimbursements, setFocusReimbursements] = useState(0);
+  const [chefRequestedView, setChefRequestedView] = useState<'home' | 'new_expense' | 'list' | null>(null);
 
   // Modales et routes
   const [isLegalOpen, setIsLegalOpen] = useState(false);
@@ -258,6 +261,9 @@ const AppContent: React.FC = () => {
   // Dépenses de l'unité active du chef
   const chefExpenses = expenses.filter((e) => e.unit_id === currentUnit.id);
 
+  // Dépenses sans justificatif de l'unité active du chef
+  const chefMissingProofs = chefExpenses.filter((e) => !hasValidProof(e));
+
   // Profils en attente pour l'admin
   const pendingProfiles = allProfiles.filter((p) => p.status === 'pending');
 
@@ -310,6 +316,16 @@ const AppContent: React.FC = () => {
         />
       )}
 
+      {/* Fenêtre imposée toutes les 3 min côté chef : justificatifs manquants de l'unité */}
+      {profile.role === 'chef' && chefMissingProofs.length > 0 && !isSandboxOpen && (
+        <ChefMissingProofBanner
+          unit={currentUnit}
+          missingExpenses={chefMissingProofs}
+          onRefresh={loadData}
+          onViewAllExpenses={() => setChefRequestedView('list')}
+        />
+      )}
+
       {/* Contenu principal selon rôle */}
       <main
         className={cn(
@@ -344,6 +360,7 @@ const AppContent: React.FC = () => {
             expenses={chefExpenses}
             isOnline={isOnline}
             onRefresh={loadData}
+            requestedView={chefRequestedView}
           />
         )}
       </main>

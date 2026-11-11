@@ -1,7 +1,12 @@
 export const DISMISS_DURATION_MS = 3 * 60 * 1000; // 3 minutes = 180 000 ms
 export const BANNER_STORAGE_KEY = 'saint_martin_admin_dismiss_until';
+export const CHEF_PROOF_BANNER_KEY_PREFIX = 'saint_martin_chef_proof_dismiss_until_';
 
-export function shouldShowAdminBanner(
+export function getChefProofStorageKey(unitId?: string | null): string {
+  return unitId ? `${CHEF_PROOF_BANNER_KEY_PREFIX}${unitId}` : 'saint_martin_chef_proof_dismiss_until';
+}
+
+export function shouldShowReminderBanner(
   pendingCount: number,
   dismissUntilMs: number | null,
   nowMs: number = Date.now()
@@ -10,6 +15,9 @@ export function shouldShowAdminBanner(
   if (!dismissUntilMs) return true;
   return nowMs >= dismissUntilMs;
 }
+
+export const shouldShowAdminBanner = shouldShowReminderBanner;
+export const shouldShowChefProofBanner = shouldShowReminderBanner;
 
 export function calculateDismissUntil(nowMs: number = Date.now()): number {
   return nowMs + DISMISS_DURATION_MS;
