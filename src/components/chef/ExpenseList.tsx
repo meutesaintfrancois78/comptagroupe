@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Expense, ExpenseCategory, Unit, Period } from '@/types/database';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MartyMascot } from '@/components/shared/MartyMascot';
 import { formatCurrency, sumAmounts } from '@/lib/utils';
@@ -150,58 +151,69 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
 
   return (
     <div className="flex flex-col gap-3.5">
-      {/* Total de l'unité et boutons d'action rapide */}
-      <div className="flex flex-col gap-3.5 rounded-[22px] border-2.5 border-line bg-green px-[18px] py-4 text-on-color shadow-pop-md">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      {/* Total de l'unité et bouton Nouvelle Dépense */}
+      <div className="flex flex-col gap-3 rounded-[24px] border-2.5 border-line bg-green p-4 sm:p-5 text-on-color shadow-pop-md">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <h2 className="text-[20px] font-extrabold leading-tight break-words">{unit.name}</h2>
-            <span className="text-[13px] font-bold">Total engagé</span>
-            <span className="text-[30px] font-extrabold leading-none">{formatCurrency(totalAmount)}</span>
+            <span className="text-[12px] font-extrabold uppercase tracking-wider opacity-85">
+              Total engagé · {unit.name}
+            </span>
+            <span className="text-[32px] sm:text-[34px] font-extrabold leading-tight tracking-tight break-words">
+              {formatCurrency(totalAmount)}
+            </span>
+            <span className="text-[13px] font-bold opacity-80">
+              {activePeriod?.name || 'Période en cours'} · {expenses.length} dépense{expenses.length > 1 ? 's' : ''}
+            </span>
           </div>
-          <button
+
+          <Button
             type="button"
+            variant="neutral"
             onClick={onNewExpense}
-            className="flex h-11 shrink-0 items-center gap-1.5 rounded-lg border-2.5 border-on-color bg-white px-3 text-[14px] font-extrabold text-on-color active:translate-x-[2px] active:translate-y-[2px]"
+            className="shrink-0 bg-white text-on-color border-2.5 border-on-color shadow-pop rounded-xl min-h-[48px] px-4 text-[14px] font-extrabold hover:bg-white/90 active:translate-x-[2px] active:translate-y-[2px]"
           >
-            <Plus className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+            <Plus className="h-4 w-4 stroke-[3]" aria-hidden="true" />
             Nouvelle dépense
-          </button>
+          </Button>
         </div>
+      </div>
 
-        {/* Boutons Export Excel & Accordéon Budget */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-on-color/25 pt-2.5">
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            disabled={expenses.length === 0}
-            className="flex h-9 items-center gap-1.5 rounded-md border-2 border-on-color bg-white/95 px-2.5 text-[13px] font-extrabold text-on-color hover:bg-white disabled:opacity-50"
-            title="Télécharger toutes les dépenses de l'unité au format Excel (CSV)"
-          >
-            <Download className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
-            Export Excel
-          </button>
+      {/* Duo d'outils d'analyse : Budget & Camembert et Export Excel côte à côte */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <Button
+          type="button"
+          variant={showBudgetSection ? 'secondary' : 'neutral'}
+          onClick={() => setShowBudgetSection((prev) => !prev)}
+          className="min-h-[46px] w-full rounded-xl border-2.5 border-line shadow-pop text-[13px] sm:text-[14px] px-2.5 leading-tight font-extrabold"
+          aria-expanded={showBudgetSection}
+        >
+          <PieChart className="h-4 w-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
+          <span className="truncate">Budget</span>
+          {showBudgetSection ? (
+            <ChevronUp className="h-4 w-4 shrink-0 stroke-[2.5]" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="h-4 w-4 shrink-0 stroke-[2.5]" aria-hidden="true" />
+          )}
+        </Button>
 
-          <button
-            type="button"
-            onClick={() => setShowBudgetSection((prev) => !prev)}
-            className="flex h-9 items-center gap-1.5 rounded-md border-2 border-on-color bg-white/95 px-2.5 text-[13px] font-extrabold text-on-color hover:bg-white ml-auto"
-          >
-            <PieChart className="h-4 w-4" strokeWidth={2.4} aria-hidden="true" />
-            Budget & Camembert
-            {showBudgetSection ? (
-              <ChevronUp className="h-4 w-4 stroke-[3]" />
-            ) : (
-              <ChevronDown className="h-4 w-4 stroke-[3]" />
-            )}
-          </button>
-        </div>
+        <Button
+          type="button"
+          variant="neutral"
+          onClick={handleExportCsv}
+          disabled={expenses.length === 0}
+          className="min-h-[46px] w-full rounded-xl border-2.5 border-line shadow-pop text-[13px] sm:text-[14px] px-2.5 leading-tight font-extrabold disabled:opacity-45"
+          title="Télécharger toutes les dépenses au format Excel"
+        >
+          <Download className="h-4 w-4 shrink-0" strokeWidth={2.4} aria-hidden="true" />
+          <span className="truncate">Export Excel</span>
+        </Button>
       </div>
 
       {/* Alerte globale si des justificatifs sont manquants */}
       {missingProofCount > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border-2.5 border-line bg-yellow/20 p-3.5 text-ink">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border-2.5 border-line bg-yellow/20 p-3.5 text-ink shadow-pop-sm">
           <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red text-white text-[14px]">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red text-white text-[14px] border border-line">
               ⚠️
             </span>
             <span className="text-[13px] font-extrabold leading-snug">
@@ -217,33 +229,35 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
           aria-label="Analyse du budget et répartition des dépenses"
           className="flex flex-col gap-4 rounded-[22px] border-2.5 border-line bg-surface p-4 shadow-pop-md"
         >
-          <div className="flex items-center justify-between gap-2 border-b-2 border-divider pb-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow/20 text-yellow border border-line">
-                <Coins className="h-5 w-5" />
+          <div className="flex items-center justify-between gap-2 border-b-2.5 border-line pb-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow/20 text-ink border-2 border-line font-extrabold">
+                <Coins className="h-5 w-5 text-yellow" strokeWidth={2.5} />
               </span>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-[16px] font-extrabold text-ink leading-tight">
                   Gestion du budget
                 </h3>
-                <span className="text-[12px] font-semibold text-muted">
+                <span className="text-[12px] font-bold text-muted truncate block">
                   {activePeriod?.name || 'Période en cours'}
                 </span>
               </div>
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="neutral"
+              size="sm"
               onClick={() => setIsBudgetModalOpen(true)}
-              className="flex h-8 items-center gap-1 rounded-lg border-2 border-line bg-surface2 px-2.5 text-[12px] font-extrabold text-ink hover:bg-surface"
+              className="shrink-0 min-h-[38px] px-3 rounded-lg border-2 border-line shadow-pop-sm text-[12px] sm:text-[13px] font-extrabold"
             >
               {currentBudget ? 'Modifier' : '+ Définir un budget'}
-            </button>
+            </Button>
           </div>
 
           {/* Jauge de Budget */}
           {budgetStatus.allocatedBudget ? (
-            <div className="flex flex-col gap-2 rounded-xl border-2 border-divider bg-surface2/50 p-3">
+            <div className="flex flex-col gap-2.5 rounded-xl border-2.5 border-line bg-surface2 p-3.5">
               <div className="flex items-center justify-between text-[13px] font-bold">
                 <span className="text-muted">Budget alloué :</span>
                 <span className="text-ink font-extrabold">
@@ -258,9 +272,9 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
               </div>
 
               {/* Barre de progression */}
-              <div className="relative h-3 w-full overflow-hidden rounded-full border border-line bg-line/30">
+              <div className="relative h-4 w-full overflow-hidden rounded-full border-2 border-line bg-surface p-[2px]">
                 <div
-                  className={`h-full transition-all duration-300 ${
+                  className={`h-full rounded-full transition-all duration-300 ${
                     budgetStatus.isExceeded
                       ? 'bg-error'
                       : (budgetStatus.percentageUsed || 0) > 85
@@ -278,8 +292,10 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
                   {budgetStatus.isExceeded ? 'Dépassement :' : 'Reste disponible :'}
                 </span>
                 <span
-                  className={`text-[15px] font-extrabold ${
-                    budgetStatus.isExceeded ? 'text-error' : 'text-success'
+                  className={`rounded-lg px-2.5 py-0.5 text-[14px] font-extrabold ${
+                    budgetStatus.isExceeded
+                      ? 'bg-error-bg text-error border border-error/30'
+                      : 'bg-green/20 text-success border border-green/40'
                   }`}
                 >
                   {budgetStatus.isExceeded
@@ -289,23 +305,25 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-line bg-surface2/30 p-3 text-center">
-              <span className="text-[13px] font-semibold text-muted">
-                Aucune enveloppe limite définie.
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-xl border-2.5 border-line bg-surface2 p-3.5 text-center sm:text-left">
+              <span className="text-[13px] font-bold text-muted">
+                Aucune enveloppe limite définie pour cette unité.
               </span>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => setIsBudgetModalOpen(true)}
-                className="text-[13px] font-extrabold text-blue hover:underline shrink-0"
+                className="shrink-0 min-h-[38px] px-3.5 rounded-lg border-2 border-line shadow-pop-sm text-[13px] font-extrabold"
               >
-                Fixer un objectif budgétaire
-              </button>
+                Fixer un objectif
+              </Button>
             </div>
           )}
 
           {/* Camembert SVG Répartition */}
-          <div className="flex flex-col gap-2 pt-2 border-t-2 border-divider">
-            <h4 className="text-[14px] font-extrabold text-ink">
+          <div className="flex flex-col gap-2 pt-2 border-t-2.5 border-line">
+            <h4 className="text-[15px] font-extrabold text-ink">
               Répartition des dépenses
             </h4>
             <CategoryDonutChart slices={breakdown} totalAmount={totalAmount} />
