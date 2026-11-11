@@ -25,6 +25,7 @@ const COLUMN_LABELS: Record<CsvColumnKey, string> = {
   category: 'Motif',
   payment_method: 'Paiement',
   reimbursement_status: 'Remboursement',
+  has_proof: 'Justificatif OK',
   comment: 'Commentaire',
 };
 
@@ -42,6 +43,7 @@ export const AdminExportModal: React.FC<AdminExportModalProps> = ({
     category: true,
     payment_method: true,
     reimbursement_status: true,
+    has_proof: true,
     comment: false,
   });
 

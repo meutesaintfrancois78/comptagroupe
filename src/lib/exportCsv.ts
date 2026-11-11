@@ -1,5 +1,6 @@
 import { Expense } from '@/types/database';
 import { formatDateFr } from './utils';
+import { hasValidProof } from './permissions';
 
 export type CsvColumnKey =
   | 'date'
@@ -9,6 +10,7 @@ export type CsvColumnKey =
   | 'category'
   | 'payment_method'
   | 'reimbursement_status'
+  | 'has_proof'
   | 'comment';
 
 export const CSV_COLUMN_DEFINITIONS: Record<CsvColumnKey, { label: string; getValue: (e: Expense) => string }> = {
@@ -43,6 +45,10 @@ export const CSV_COLUMN_DEFINITIONS: Record<CsvColumnKey, { label: string; getVa
       return e.reimbursement_status === 'reimbursed' ? 'Remboursée' : 'À rembourser';
     },
   },
+  has_proof: {
+    label: 'Justificatif OK',
+    getValue: (e) => (hasValidProof(e) ? 'Oui' : 'Non'),
+  },
   comment: {
     label: 'Commentaire',
     getValue: (e) => e.comment || '',
@@ -70,6 +76,7 @@ export function generateCsvContent(
     'category',
     'payment_method',
     'reimbursement_status',
+    'has_proof',
     'comment',
   ]
 ): string {

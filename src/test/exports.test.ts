@@ -93,10 +93,37 @@ describe('Exports TDD (CSV & ZIP)', () => {
     expect(lines[2]).toBe('12,50 rendu');
   });
 
+  it('should export boolean has_proof as Oui when receipt is attached and Non when missing', () => {
+    const expensesWithAndWithoutProof: Expense[] = [
+      {
+        ...sampleExpenses[0],
+        id: 'e1',
+        proof_path: 'u1/ticket.jpg',
+      },
+      {
+        ...sampleExpenses[0],
+        id: 'e2',
+        proof_path: '', // Justificatif différé
+      },
+      {
+        ...sampleExpenses[0],
+        id: 'e3',
+        proof_path: null,
+      },
+    ];
+
+    const csv = generateCsvContent(expensesWithAndWithoutProof, ['date', 'amount', 'has_proof']);
+    const lines = csv.replace('\uFEFF', '').split('\r\n');
+    expect(lines[0]).toBe('Date;Montant;Justificatif OK');
+    expect(lines[1]).toBe('14/10/2026;42,50;Oui');
+    expect(lines[2]).toBe('14/10/2026;42,50;Non');
+    expect(lines[3]).toBe('14/10/2026;42,50;Non');
+  });
+
   it('should export all default columns when no column list is passed (Chef export)', () => {
     const csv = generateCsvContent(sampleExpenses);
     expect(csv.startsWith('\uFEFF')).toBe(true);
-    expect(csv).toContain('Date;Unité;Chef;Montant;Catégorie;Mode de paiement;Statut remboursement;Commentaire');
-    expect(csv).toContain('14/10/2026;Meute 1;Benoît Dupont;42,50;Nourriture;Argent de l\'unité;Sans objet;"Pain et goûter ""bio"""');
+    expect(csv).toContain('Date;Unité;Chef;Montant;Catégorie;Mode de paiement;Statut remboursement;Justificatif OK;Commentaire');
+    expect(csv).toContain('14/10/2026;Meute 1;Benoît Dupont;42,50;Nourriture;Argent de l\'unité;Sans objet;Oui;"Pain et goûter ""bio"""');
   });
 });
