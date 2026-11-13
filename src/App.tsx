@@ -149,7 +149,7 @@ const AppContent: React.FC = () => {
     // 4. Dépenses (avec jointures complètes unité, catégorie, créateur)
     const { data: expData } = await supabase
       .from('expenses')
-      .select('*, unit:units(id, name), category:expense_categories(id, name), creator:profiles(id, first_name, last_name)')
+      .select('*, unit:units(id, name), category:expense_categories(id, name), creator:profiles(id, first_name, last_name, iban)')
       .order('date', { ascending: false });
 
     if (expData) {

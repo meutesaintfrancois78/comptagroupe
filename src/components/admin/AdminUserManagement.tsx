@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
+import { Copy, Check } from 'lucide-react';
 import { Profile, Unit, UserRole, AccountStatus } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
 import { Badge } from '@/components/ui/badge';
-import { Field, Select } from '@/components/ui/input';
+import { Field, Select, Input } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { Banner } from '@/components/ui/feedback';
 import { supabase } from '@/lib/supabase';
 import { validateProfileUnitAssignment } from '@/lib/permissions';
 import { acceptUnitChangeRequest, rejectUnitChangeRequest } from './PendingValidationBanner';
+import { formatIban, cleanIban, isValidIban, getIbanValidationError } from '@/lib/iban';
 
 interface AdminUserManagementProps {
   profiles: Profile[];
@@ -38,6 +40,7 @@ interface SheetForm {
   secondary: string;
   role: UserRole;
   status: AccountStatus;
+  iban: string;
 }
 
 export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
@@ -48,6 +51,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
 }) => {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'date-desc' | 'date-asc'>('name-asc');
+  const [copiedIban, setCopiedIban] = useState(false);
   const sortedProfiles = React.useMemo(() => {
     const byName = (a: Profile, b: Profile) =>
       `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, 'fr', { sensitivity: 'base' });
@@ -79,11 +83,13 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
   const openSheet = (p: Profile) => {
     setSelectedUser(p);
     setSheetError(null);
+    setCopiedIban(false);
     setForm({
       primary: p.primary_unit_id || '',
       secondary: p.secondary_unit_id || '',
       role: p.role,
       status: p.status,
+      iban: formatIban(p.iban ?? ''),
     });
   };
 
@@ -91,6 +97,7 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
     setSelectedUser(null);
     setForm(null);
     setSheetError(null);
+    setCopiedIban(false);
   };
 
   const updateForm = (patch: Partial<SheetForm>) => {
@@ -136,12 +143,20 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
       return;
     }
 
+    const cleanedIban = cleanIban(form.iban);
+    if (form.iban.trim() && !isValidIban(cleanedIban)) {
+      const err = getIbanValidationError(form.iban);
+      setSheetError(err || 'IBAN invalide.');
+      return;
+    }
+
     // N'envoie que ce qui change
-    const payload: Partial<Pick<Profile, 'role' | 'status' | 'primary_unit_id' | 'secondary_unit_id'>> = {};
+    const payload: Partial<Pick<Profile, 'role' | 'status' | 'primary_unit_id' | 'secondary_unit_id' | 'iban'>> = {};
     if (form.role !== target.role) payload.role = form.role;
     if (form.status !== target.status) payload.status = form.status;
     if (validation.unitId !== (target.primary_unit_id || null)) payload.primary_unit_id = validation.unitId;
     if (secondary !== (target.secondary_unit_id || null)) payload.secondary_unit_id = secondary;
+    if (cleanedIban !== (cleanIban(target.iban) || '')) payload.iban = cleanedIban || null;
 
     if (Object.keys(payload).length === 0) {
       closeSheet();
@@ -250,6 +265,15 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                       Demande : {requested}
                     </Badge>
                   )}
+                  {p.iban ? (
+                    <Badge variant="dashed" className="whitespace-normal font-mono font-bold text-[11px]">
+                      RIB OK
+                    </Badge>
+                  ) : p.role === 'chef' ? (
+                    <Badge variant="yellow" className="whitespace-normal font-bold text-[11px]">
+                      Sans RIB
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
               <Button
@@ -363,6 +387,48 @@ export const AdminUserManagement: React.FC<AdminUserManagementProps> = ({
                   ))}
                 </Select>
               </Field>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label htmlFor="fiche-iban" className="text-[13px] font-bold">
+                  IBAN (RIB)
+                </label>
+                {form.iban && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(cleanIban(form.iban));
+                      setCopiedIban(true);
+                      setTimeout(() => setCopiedIban(false), 2000);
+                    }}
+                    className="flex items-center gap-1 text-[12px] font-bold text-link"
+                    aria-label="Copier l'IBAN"
+                  >
+                    {copiedIban ? (
+                      <>
+                        <Check className="h-3 w-3 text-green" aria-hidden="true" />
+                        <span>Copié !</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" aria-hidden="true" />
+                        <span>Copier l'IBAN</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+              <Input
+                id="fiche-iban"
+                value={form.iban}
+                onChange={(e) => updateForm({ iban: formatIban(e.target.value) })}
+                placeholder="FR76 0000 0000 0000 0000 0000 000"
+                className="font-mono uppercase tracking-wider text-[14px]"
+              />
+              <span className="text-[12px] font-semibold text-muted">
+                Pour les virements de remboursement effectués par Patrick.
+              </span>
             </div>
 
             {sheetError && <Banner tone="error">{sheetError}</Banner>}

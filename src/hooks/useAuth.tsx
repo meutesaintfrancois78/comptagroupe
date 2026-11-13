@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { User } from '@supabase/supabase-js';
 import { supabase, isMockMode } from '@/lib/supabase';
 import { Profile } from '@/types/database';
+import { cleanIban } from '@/lib/iban';
 
 interface SignUpData {
   email: string;
@@ -9,6 +10,7 @@ interface SignUpData {
   firstName: string;
   lastName: string;
   primaryUnitId: string;
+  iban: string;
 }
 
 interface AuthContextType {
@@ -45,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const lastName = meta.last_name || meta.family_name || fullName.split(' ').slice(1).join(' ') || 'Saint-Martin';
       // Sans unité (connexion Google), l'appli demande de compléter l'inscription
       const unitId = meta.primary_unit_id || null;
+      const iban = meta.iban ? cleanIban(meta.iban) : null;
       // Un profil créé côté client est toujours un chef en attente : le rôle admin se donne côté admin
       const role = 'chef';
       const status = 'pending';
@@ -58,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role,
           status,
           primary_unit_id: unitId,
+          iban,
         });
 
       if (insertRes.error) {
@@ -180,8 +184,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: (error as Error | null) ?? null };
   };
 
-  const signUp = async ({ email, password = 'password', firstName, lastName, primaryUnitId }: SignUpData) => {
+  const signUp = async ({ email, password = 'password', firstName, lastName, primaryUnitId, iban }: SignUpData) => {
     setProfileError(null);
+    const cleanedIban = cleanIban(iban);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -190,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           first_name: firstName,
           last_name: lastName,
           primary_unit_id: primaryUnitId,
+          iban: cleanedIban,
         },
       },
     });
@@ -208,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'chef',
         status: 'pending',
         primary_unit_id: primaryUnitId,
+        iban: cleanedIban,
       });
     }
 

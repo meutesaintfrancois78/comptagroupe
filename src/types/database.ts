@@ -39,6 +39,7 @@ export interface Profile {
   primary_unit_id: string | null;
   secondary_unit_id: string | null;
   requested_unit_id?: string | null;
+  iban?: string | null;
   primary_unit?: Unit | null;
   secondary_unit?: Unit | null;
   created_at: string;

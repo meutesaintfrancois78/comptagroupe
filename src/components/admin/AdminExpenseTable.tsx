@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Check, CheckCircle2, Download, Filter, History, Pencil, Trash2 } from 'lucide-react';
+import { Check, CheckCircle2, Copy, Download, Filter, History, Pencil, Trash2 } from 'lucide-react';
 import { Expense, ExpenseCategory, Unit, Profile, Period } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
@@ -12,6 +12,7 @@ import { hasValidProof } from '@/lib/permissions';
 import { ExpenseEditModal } from '@/components/chef/ExpenseEditModal';
 import { ExpenseHistoryModal } from '@/components/shared/ExpenseHistoryModal';
 import { supabase, isMockMode } from '@/lib/supabase';
+import { formatIban, cleanIban } from '@/lib/iban';
 
 interface AdminExpenseTableProps {
   expenses: Expense[];
@@ -204,6 +205,7 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
   // Case « Remboursée » (admin seulement, dépenses en argent perso) : confirmation, puis définitif
   const [confirmReimburse, setConfirmReimburse] = useState<Expense | null>(null);
   const [isReimbursing, setIsReimbursing] = useState(false);
+  const [copiedIban, setCopiedIban] = useState(false);
   const confirm = useConfirm();
 
   const handleConfirmReimbursed = async () => {
@@ -665,35 +667,83 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
       {/* Aperçu du justificatif (lien signé) */}
       <Dialog
         isOpen={Boolean(confirmReimburse)}
-        onClose={() => !isReimbursing && setConfirmReimburse(null)}
+        onClose={() => {
+          if (!isReimbursing) {
+            setConfirmReimburse(null);
+            setCopiedIban(false);
+          }
+        }}
         title="Confirmer le remboursement"
         variant="center"
         role="alertdialog"
         className="max-w-[440px]"
       >
-        {confirmReimburse && (
-          <div className="flex flex-col gap-4">
-            <p className="text-[15px] leading-relaxed">
-              As-tu bien remboursé <strong>{formatCurrency(confirmReimburse.amount)}</strong> à{' '}
-              <strong>
-                {[confirmReimburse.creator?.first_name, confirmReimburse.creator?.last_name].filter(Boolean).join(' ') || 'ce chef'}
-              </strong>{' '}
-              ({motifOf(confirmReimburse)}, {formatDateFr(confirmReimburse.date)}) ?
-            </p>
-            <Banner tone="warning">
-              C'est définitif : la dépense ne pourra plus revenir « À rembourser ».
-              {!isMockMode && ' Le chef reçoit un email de confirmation.'}
-            </Banner>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button variant="neutral" onClick={() => setConfirmReimburse(null)} disabled={isReimbursing}>
-                Annuler
-              </Button>
-              <Button onClick={handleConfirmReimbursed} disabled={isReimbursing}>
-                {isReimbursing ? 'Enregistrement…' : 'Oui, c\'est remboursé'}
-              </Button>
+        {confirmReimburse && (() => {
+          const chefIban = confirmReimburse.creator?.iban || profiles?.find((p) => p.id === confirmReimburse.created_by)?.iban;
+          const chefName = [confirmReimburse.creator?.first_name, confirmReimburse.creator?.last_name].filter(Boolean).join(' ') || 'ce chef';
+
+          return (
+            <div className="flex flex-col gap-3.5">
+              <p className="text-[15px] leading-relaxed">
+                As-tu bien remboursé <strong>{formatCurrency(confirmReimburse.amount)}</strong> à{' '}
+                <strong>{chefName}</strong>{' '}
+                ({motifOf(confirmReimburse)}, {formatDateFr(confirmReimburse.date)}) ?
+              </p>
+
+              {chefIban ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface2 px-3 py-2.5">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-[11px] font-bold text-muted">IBAN pour le virement</span>
+                    <span className="break-all font-mono text-[13px] font-bold tracking-wider text-ink">
+                      {formatIban(chefIban)}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="neutral"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(cleanIban(chefIban));
+                      setCopiedIban(true);
+                      setTimeout(() => setCopiedIban(false), 2000);
+                    }}
+                    className="min-h-[38px] shrink-0 gap-1.5 rounded-lg border text-[12px] font-bold"
+                    aria-label="Copier l'IBAN"
+                  >
+                    {copiedIban ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-green" aria-hidden="true" />
+                        <span>Copié !</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Copier l'IBAN</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <Banner tone="warning">
+                  ⚠️ Aucun IBAN renseigné pour ce chef. Demande-lui son RIB avant de procéder au virement.
+                </Banner>
+              )}
+
+              <Banner tone="warning">
+                C'est définitif : la dépense ne pourra plus revenir « À rembourser ».
+                {!isMockMode && ' Le chef reçoit un email de confirmation.'}
+              </Banner>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="neutral" onClick={() => { setConfirmReimburse(null); setCopiedIban(false); }} disabled={isReimbursing}>
+                  Annuler
+                </Button>
+                <Button onClick={handleConfirmReimbursed} disabled={isReimbursing}>
+                  {isReimbursing ? 'Enregistrement…' : 'Oui, c\'est remboursé'}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </Dialog>
 
       <Dialog

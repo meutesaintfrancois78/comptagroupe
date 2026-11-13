@@ -9,6 +9,7 @@ import { LegalModal } from '@/components/legal/LegalModal';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { Unit } from '@/types/database';
+import { formatIban, getIbanValidationError } from '@/lib/iban';
 
 type Mode = 'login' | 'register' | 'forgot';
 
@@ -68,6 +69,7 @@ export const Login: React.FC = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [primaryUnitId, setPrimaryUnitId] = useState('');
+  const [iban, setIban] = useState('');
   const [acceptedLegal, setAcceptedLegal] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -141,6 +143,11 @@ export const Login: React.FC = () => {
       setErrorMsg('Choisis ton unité.');
       return;
     }
+    const ibanError = getIbanValidationError(iban);
+    if (ibanError) {
+      setErrorMsg(ibanError);
+      return;
+    }
     setIsLoading(true);
     setErrorMsg(null);
     try {
@@ -150,6 +157,7 @@ export const Login: React.FC = () => {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         primaryUnitId,
+        iban,
       });
       if (error) {
         setErrorMsg(error.message || "Erreur lors de l'inscription.");
@@ -353,6 +361,22 @@ export const Login: React.FC = () => {
                     </option>
                   ))}
                 </Select>
+              </SmallField>
+
+              <SmallField label="IBAN (RIB pour tes remboursements)" htmlFor="reg-iban">
+                <Input
+                  id="reg-iban"
+                  type="text"
+                  required
+                  autoComplete="off"
+                  placeholder="FR76 0000 0000 0000 0000 0000 000"
+                  value={iban}
+                  onChange={(e) => setIban(formatIban(e.target.value))}
+                  className={`${smallField} font-mono uppercase tracking-wider text-[14px]`}
+                />
+                <span className="text-[12px] font-semibold text-muted">
+                  Sert au trésorier pour effectuer tes virements de remboursement.
+                </span>
               </SmallField>
 
               <SmallField label="Email" htmlFor="reg-email">

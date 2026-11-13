@@ -7,6 +7,7 @@ import { LegalModal } from '@/components/legal/LegalModal';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { Unit } from '@/types/database';
+import { formatIban, cleanIban, getIbanValidationError } from '@/lib/iban';
 
 /**
  * Fin d'inscription d'un compte créé par Google : le chef confirme son vrai nom
@@ -19,6 +20,7 @@ export const CompleteProfileScreen: React.FC = () => {
   const [firstName, setFirstName] = useState(profile?.first_name === 'Chef' ? '' : profile?.first_name ?? '');
   const [lastName, setLastName] = useState(profile?.last_name === 'Scout' ? '' : profile?.last_name ?? '');
   const [unitId, setUnitId] = useState('');
+  const [iban, setIban] = useState(formatIban(profile?.iban ?? ''));
   const [accepted, setAccepted] = useState(false);
   const [isLegalOpen, setIsLegalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,6 +46,11 @@ export const CompleteProfileScreen: React.FC = () => {
       setErrorMsg('Choisis ton unité.');
       return;
     }
+    const ibanError = getIbanValidationError(iban);
+    if (ibanError) {
+      setErrorMsg(ibanError);
+      return;
+    }
     if (!accepted) {
       setErrorMsg("Tu dois accepter les conditions d'utilisation pour continuer.");
       return;
@@ -52,7 +59,12 @@ export const CompleteProfileScreen: React.FC = () => {
     setIsSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ first_name: firstName.trim(), last_name: lastName.trim(), primary_unit_id: unitId })
+      .update({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        primary_unit_id: unitId,
+        iban: cleanIban(iban),
+      })
       .eq('id', profile.id);
     setIsSaving(false);
     if (error) {
@@ -117,6 +129,20 @@ export const CompleteProfileScreen: React.FC = () => {
                 </option>
               ))}
             </Select>
+          </Field>
+
+          <Field label="IBAN (RIB pour tes remboursements)" htmlFor="complete-iban">
+            <Input
+              id="complete-iban"
+              required
+              placeholder="FR76 0000 0000 0000 0000 0000 000"
+              value={iban}
+              onChange={(e) => setIban(formatIban(e.target.value))}
+              className="min-h-[46px] rounded-lg px-3 font-mono uppercase tracking-wider text-[14px]"
+            />
+            <span className="text-[12px] font-semibold text-muted">
+              Sert au trésorier pour effectuer tes virements de remboursement.
+            </span>
           </Field>
 
           <label htmlFor="complete-cgu" className="flex min-h-[44px] items-center gap-2.5">

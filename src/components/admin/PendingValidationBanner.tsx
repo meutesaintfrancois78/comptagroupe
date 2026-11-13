@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Clock, Wallet } from 'lucide-react';
+import { AlertTriangle, Clock, Wallet, Copy, Check } from 'lucide-react';
 import { Profile, Unit } from '@/types/database';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/input';
 import { Dialog } from '@/components/ui/dialog';
 import { Banner, IconTile } from '@/components/ui/feedback';
 import { supabase } from '@/lib/supabase';
+import { formatIban, cleanIban } from '@/lib/iban';
 import {
   shouldShowAdminBanner,
   calculateDismissUntil,
@@ -83,8 +84,17 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [copiedIbanId, setCopiedIbanId] = useState<string | null>(null);
   const confirm = useConfirm();
   const [, setTick] = useState<number>(0);
+
+  const handleCopyIban = (id: string, ibanStr: string) => {
+    navigator.clipboard?.writeText(cleanIban(ibanStr));
+    setCopiedIbanId(id);
+    setTimeout(() => {
+      setCopiedIbanId((curr) => (curr === id ? null : curr));
+    }, 2000);
+  };
 
   const unitRequests = profiles ? getUnitChangeRequests(profiles) : [];
   const totalCount = pendingProfiles.length + unitRequests.length + reimbursementsCount;
@@ -269,6 +279,42 @@ export const PendingValidationBanner: React.FC<PendingValidationBannerProps> = (
                   {formatSignupDate(p.created_at) && ` · inscription le ${formatSignupDate(p.created_at)}`}
                 </span>
               </div>
+
+              {p.iban ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface2 px-3 py-2 text-[13px]">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-[11px] font-bold text-muted">IBAN (pour les virements)</span>
+                    <span className="break-all font-mono text-[13px] font-bold tracking-wider text-ink">
+                      {formatIban(p.iban)}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="neutral"
+                    size="sm"
+                    onClick={() => handleCopyIban(p.id, p.iban!)}
+                    className="min-h-[36px] shrink-0 gap-1.5 rounded-lg border text-[12px] font-bold"
+                    aria-label={`Copier l'IBAN de ${fullName(p)}`}
+                  >
+                    {copiedIbanId === p.id ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-green" aria-hidden="true" />
+                        <span>Copié !</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Copier</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-yellow bg-yellow/15 px-3 py-1.5 text-[12px] font-semibold text-ink">
+                  ⚠️ Aucun IBAN renseigné pour ce compte.
+                </div>
+              )}
+
               <Select
                 aria-label={`Unité à attribuer à ${fullName(p)}`}
                 value={selectedUnits[p.id] || p.primary_unit_id || ''}
