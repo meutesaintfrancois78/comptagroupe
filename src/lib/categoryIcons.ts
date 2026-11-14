@@ -161,3 +161,65 @@ export function getCategoryIcon(
 
   return Receipt;
 }
+
+/**
+ * Valide le renommage d'un motif de paiement :
+ * - Rejette les noms vides
+ * - Rejette le renommage de « Autre »
+ * - Rejette un nouveau nom égal à « Autre » (réservé)
+ * - Rejette les doublons existants
+ * - Détecte l'absence de modification
+ */
+export function validateCategoryRename(
+  currentCat: { id: string; name: string },
+  newName: string,
+  categories: { id: string; name: string }[]
+): { isValid: boolean; error?: string; cleanName: string; noChange?: boolean } {
+  const cleanName = newName.trim();
+  if (!cleanName) {
+    return { isValid: false, error: 'Le nom du motif ne peut pas être vide.', cleanName };
+  }
+  if (isSystemCategory(currentCat)) {
+    return { isValid: false, error: 'Le motif système « Autre » ne peut pas être renommé.', cleanName };
+  }
+  if (cleanName.toLowerCase() === 'autre') {
+    return { isValid: false, error: '« Autre » est réservé comme motif système.', cleanName };
+  }
+  if (cleanName.toLowerCase() === currentCat.name.trim().toLowerCase()) {
+    return { isValid: true, cleanName, noChange: true };
+  }
+  const duplicate = categories.some(
+    (c) => c.id !== currentCat.id && c.name.trim().toLowerCase() === cleanName.toLowerCase()
+  );
+  if (duplicate) {
+    return { isValid: false, error: `« ${cleanName} » existe déjà.`, cleanName };
+  }
+  return { isValid: true, cleanName };
+}
+
+/**
+ * Valide le renommage d'une unité scoute :
+ * - Rejette les noms vides
+ * - Rejette les doublons existants
+ * - Détecte l'absence de modification
+ */
+export function validateUnitRename(
+  currentUnit: { id: string; name: string },
+  newName: string,
+  units: { id: string; name: string }[]
+): { isValid: boolean; error?: string; cleanName: string; noChange?: boolean } {
+  const cleanName = newName.trim();
+  if (!cleanName) {
+    return { isValid: false, error: "Le nom de l'unité ne peut pas être vide.", cleanName };
+  }
+  if (cleanName.toLowerCase() === currentUnit.name.trim().toLowerCase()) {
+    return { isValid: true, cleanName, noChange: true };
+  }
+  const duplicate = units.some(
+    (u) => u.id !== currentUnit.id && u.name.trim().toLowerCase() === cleanName.toLowerCase()
+  );
+  if (duplicate) {
+    return { isValid: false, error: `« ${cleanName} » existe déjà.`, cleanName };
+  }
+  return { isValid: true, cleanName };
+}

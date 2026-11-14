@@ -11,6 +11,7 @@ import { cn, formatCurrency, formatDateFr, sumAmounts, getChefsFilterList } from
 import { hasValidProof } from '@/lib/permissions';
 import { ExpenseEditModal } from '@/components/chef/ExpenseEditModal';
 import { ExpenseHistoryModal } from '@/components/shared/ExpenseHistoryModal';
+import { ProofUploadModal } from '@/components/chef/ProofUploadModal';
 import { supabase, isMockMode } from '@/lib/supabase';
 import { formatIban, cleanIban } from '@/lib/iban';
 
@@ -206,6 +207,7 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
   const [confirmReimburse, setConfirmReimburse] = useState<Expense | null>(null);
   const [isReimbursing, setIsReimbursing] = useState(false);
   const [copiedIban, setCopiedIban] = useState(false);
+  const [uploadMissingProofExp, setUploadMissingProofExp] = useState<Expense | null>(null);
   const confirm = useConfirm();
 
   const handleConfirmReimbursed = async () => {
@@ -289,19 +291,27 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
 
   const receiptButton = (exp: Expense) => {
     const hasProof = hasValidProof(exp);
+    if (!hasProof) {
+      return (
+        <button
+          type="button"
+          onClick={() => setUploadMissingProofExp(exp)}
+          aria-label={`Ajouter le justificatif manquant pour : ${motifOf(exp)}`}
+          title="⚠️ Justificatif manquant — Cliquer pour ajouter le reçu"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] transition-transform hover:scale-105 hover:bg-error-bg/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
+        >
+          <ReceiptThumb exp={exp} />
+        </button>
+      );
+    }
+
     return (
       <button
         type="button"
         onClick={() => setPreview(exp)}
-        disabled={!hasProof || !exp.signed_proof_url}
+        disabled={!exp.signed_proof_url}
         aria-label={`Voir le justificatif : ${motifOf(exp)}`}
-        title={
-          !hasProof
-            ? 'Justificatif manquant'
-            : exp.signed_proof_url
-            ? 'Voir le justificatif'
-            : 'Justificatif indisponible'
-        }
+        title={exp.signed_proof_url ? 'Voir le justificatif' : 'Justificatif indisponible'}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] hover:bg-surface2 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <ReceiptThumb exp={exp} />
@@ -506,29 +516,28 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
                   {isPersonal && (
                     <div className="pt-2 border-t border-divider flex flex-col gap-1.5">
                       {!isReimbursed ? (
-                        <Button
-                          variant="primary"
-                          onClick={() => setConfirmReimburse(exp)}
-                          disabled={!hasProof}
-                          title={!hasProof ? 'Remboursement bloqué : aucun justificatif fourni' : undefined}
-                          className={cn(
-                            'w-full justify-center gap-2 font-extrabold min-h-[46px] text-[14px] rounded-[14px]',
-                            !hasProof
-                              ? 'bg-muted/70 text-ink/70 cursor-not-allowed border-2 border-line'
-                              : 'bg-green text-on-color shadow-pop-sm'
-                          )}
-                        >
-                          {!hasProof ? (
-                            <span className="flex items-center gap-1.5 text-center text-[12px]">
-                              ⚠️ Justificatif manquant (remboursement bloqué)
-                            </span>
-                          ) : (
+                        !hasProof ? (
+                          <button
+                            type="button"
+                            onClick={() => setUploadMissingProofExp(exp)}
+                            className="flex flex-col items-center justify-center w-full min-h-[46px] rounded-[14px] border-2 border-dashed border-error bg-error-bg/25 px-3 py-1.5 text-center text-error hover:bg-error-bg/40 transition-colors"
+                            title="Justificatif manquant : cliquer pour ajouter le reçu et débloquer le remboursement"
+                          >
+                            <span className="text-[12px] font-extrabold">⚠️ Justificatif manquant (remboursement bloqué)</span>
+                            <span className="text-[11px] font-bold underline text-ink">📸 Cliquer ici pour ajouter le reçu</span>
+                          </button>
+                        ) : (
+                          <Button
+                            variant="primary"
+                            onClick={() => setConfirmReimburse(exp)}
+                            className="w-full justify-center gap-2 font-extrabold min-h-[46px] text-[14px] rounded-[14px] bg-green text-on-color shadow-pop-sm"
+                          >
                             <span className="flex items-center gap-1.5">
                               <Check className="h-4 w-4 stroke-[3]" />
                               Rembourser {formatCurrency(exp.amount)}
                             </span>
-                          )}
-                        </Button>
+                          </Button>
+                        )
                       ) : (
                         <div className="flex items-center gap-2 text-success font-extrabold text-[14px] py-1">
                           <CheckCircle2 className="h-5 w-5" />
@@ -542,9 +551,15 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
                     <div className="flex items-center gap-2">
                       {receiptButton(exp)}
                       {!hasProof && (
-                        <span className="text-[12px] font-bold text-error">
-                          Pas de reçu
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setUploadMissingProofExp(exp)}
+                          className="flex items-center gap-1 text-[12px] font-extrabold text-error hover:underline text-left"
+                          title="Cliquer pour ajouter le justificatif"
+                        >
+                          <span>Pas de reçu</span>
+                          <span className="text-[11px] font-semibold underline text-ink">(Ajouter 📸)</span>
+                        </button>
                       )}
                     </div>
                     {actionButtons(exp)}
@@ -602,9 +617,16 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="line-clamp-2 break-words">{motifOf(exp)}</span>
                         {!hasValidProof(exp) && (
-                          <Badge variant="red" className="text-[10px] font-extrabold py-0 px-1 shrink-0">
-                            Sans reçu
-                          </Badge>
+                          <button
+                            type="button"
+                            onClick={() => setUploadMissingProofExp(exp)}
+                            title="Justificatif manquant : cliquer pour ajouter le reçu"
+                            className="inline-flex items-center"
+                          >
+                            <Badge variant="red" className="text-[10px] font-extrabold py-0 px-1 shrink-0 hover:brightness-95 cursor-pointer">
+                              Sans reçu 📸
+                            </Badge>
+                          </button>
                         )}
                       </div>
                     </td>
@@ -780,6 +802,17 @@ export const AdminExpenseTable: React.FC<AdminExpenseTableProps> = ({
           </div>
         )}
       </Dialog>
+
+      {/* Modale d'ajout de justificatif manquant pour l'administrateur */}
+      <ProofUploadModal
+        isOpen={Boolean(uploadMissingProofExp)}
+        expense={uploadMissingProofExp}
+        onClose={() => setUploadMissingProofExp(null)}
+        onSuccess={() => {
+          setUploadMissingProofExp(null);
+          onRefresh();
+        }}
+      />
     </div>
   );
 };
