@@ -26,6 +26,7 @@ export interface ExpenseCategory {
   id: string;
   name: string;
   is_active: boolean;
+  icon?: string;
   created_at: string;
 }
 

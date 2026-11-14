@@ -100,7 +100,7 @@ export const App: React.FC = () => (
 );
 
 const AppContent: React.FC = () => {
-  const { user, profile, isLoading: isAuthLoading, profileError, refreshProfile, signOut } = useAuth();
+  const { user, profile, isLoading: isAuthLoading, profileError, refreshProfile, signOut, isPasswordRecovery } = useAuth();
   const isOnline = useNetworkStatus();
 
   // Données globales
@@ -191,6 +191,11 @@ const AppContent: React.FC = () => {
   // 1. Écran de chargement initial (écran 5)
   if (isAuthLoading) {
     return <LoadingScreen />;
+  }
+
+  // 1b. Récupération de mot de passe en cours (lien email cliqué) -> Écran de nouveau mot de passe
+  if (isPasswordRecovery) {
+    return <Login />;
   }
 
   // 2. Utilisateur NON connecté -> Écran Login / Inscription

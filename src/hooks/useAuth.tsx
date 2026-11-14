@@ -19,11 +19,13 @@ interface AuthContextType {
   isLoading: boolean;
   profileError: string | null;
   isMock: boolean;
+  isPasswordRecovery: boolean;
   signIn: (email: string, password?: string) => Promise<{ error: Error | null }>;
   signUp: (data: SignUpData) => Promise<{ error: Error | null; needsEmailConfirmation?: boolean }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
   switchMockUser?: (roleOrId: string) => void;
 }
@@ -35,6 +37,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.location.hash.includes('type=recovery') ||
+      window.location.search.includes('type=recovery')
+    );
+  });
 
   // Auto-guérison : crée le profil s'il manque dans public.profiles pour un utilisateur authentifié
   const selfHealProfile = async (authUser: any): Promise<Profile | null> => {
@@ -140,6 +149,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (_event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+      }
+
       if (session?.user?.id) {
         setUser(session.user as any);
         await fetchProfile(session.user.id, session.user);
@@ -229,11 +242,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setProfile(null);
     setProfileError(null);
+    setIsPasswordRecovery(false);
     setIsLoading(false);
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error: error as Error | null };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (!error) {
+      setIsPasswordRecovery(false);
+      if (typeof window !== 'undefined' && window.location.hash.includes('type=recovery')) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+      await refreshProfile();
+    }
     return { error: error as Error | null };
   };
 
@@ -265,11 +292,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         profileError,
         isMock: isMockMode,
+        isPasswordRecovery,
         signIn,
         signUp,
         signInWithGoogle,
         signOut,
         resetPassword,
+        updatePassword,
         refreshProfile,
         switchMockUser,
       }}

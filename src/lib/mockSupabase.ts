@@ -22,12 +22,12 @@ const DEFAULT_UNITS: Unit[] = [
 ];
 
 const DEFAULT_CATEGORIES: ExpenseCategory[] = [
-  { id: 'c1', name: 'Nourriture', is_active: true, created_at: '2026-09-01T00:00:00Z' },
-  { id: 'c2', name: 'Transport', is_active: true, created_at: '2026-09-01T00:00:00Z' },
-  { id: 'c3', name: 'Matériel', is_active: true, created_at: '2026-09-01T00:00:00Z' },
-  { id: 'c4', name: 'Hébergement', is_active: true, created_at: '2026-09-01T00:00:00Z' },
-  { id: 'c5', name: 'Pharmacie', is_active: true, created_at: '2026-09-01T00:00:00Z' },
-  { id: 'c6', name: 'Autre', is_active: true, created_at: '2026-09-01T00:00:00Z' },
+  { id: 'c1', name: 'Nourriture', icon: 'ShoppingCart', is_active: true, created_at: '2026-09-01T00:00:00Z' },
+  { id: 'c2', name: 'Transport', icon: 'Bus', is_active: true, created_at: '2026-09-01T00:00:00Z' },
+  { id: 'c3', name: 'Matériel', icon: 'Package', is_active: true, created_at: '2026-09-01T00:00:00Z' },
+  { id: 'c4', name: 'Hébergement', icon: 'Tent', is_active: true, created_at: '2026-09-01T00:00:00Z' },
+  { id: 'c5', name: 'Pharmacie', icon: 'HeartPulse', is_active: true, created_at: '2026-09-01T00:00:00Z' },
+  { id: 'c6', name: 'Autre', icon: 'Ellipsis', is_active: true, created_at: '2026-09-01T00:00:00Z' },
 ];
 
 const DEFAULT_PERIODS: Period[] = [
@@ -365,6 +365,9 @@ export class MockSupabaseClient {
       },
       resetPasswordForEmail: async (_email: string) => {
         return { data: {}, error: null };
+      },
+      updateUser: async (_attrs: { password?: string }) => {
+        return { data: { user: this.db.currentUser }, error: null };
       },
     };
   }

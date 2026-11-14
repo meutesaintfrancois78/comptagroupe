@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { Unit } from '@/types/database';
 import { formatIban, getIbanValidationError } from '@/lib/iban';
 
-type Mode = 'login' | 'register' | 'forgot';
+type Mode = 'login' | 'register' | 'forgot' | 'reset_password';
 
 // Google est configuré dans Supabase (docs/CONNEXION-GOOGLE.md) ; VITE_ENABLE_GOOGLE_AUTH=false masque le bouton
 const googleEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH !== 'false';
@@ -57,15 +57,27 @@ const SmallField: React.FC<{ label: string; htmlFor: string; children: React.Rea
 );
 
 export const Login: React.FC = () => {
-  const { signIn, signUp, signInWithGoogle, resetPassword, isMock, switchMockUser } = useAuth();
+  const {
+    signIn,
+    signUp,
+    signInWithGoogle,
+    resetPassword,
+    updatePassword,
+    isPasswordRecovery,
+    signOut,
+    isMock,
+    switchMockUser,
+  } = useAuth();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [mode, setMode] = useState<Mode>('login');
+  const [mode, setMode] = useState<Mode>(isPasswordRecovery ? 'reset_password' : 'login');
   const [units, setUnits] = useState<Unit[]>([]);
   const [isLegalOpen, setIsLegalOpen] = useState(false);
 
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [primaryUnitId, setPrimaryUnitId] = useState('');
@@ -76,6 +88,12 @@ export const Login: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+
+  useEffect(() => {
+    if (isPasswordRecovery) {
+      setMode('reset_password');
+    }
+  }, [isPasswordRecovery]);
 
   useEffect(() => {
     // Unités actives, pour le choix « Ton unité » de l'inscription
@@ -183,6 +201,30 @@ export const Login: React.FC = () => {
         setErrorMsg('Erreur lors de la demande de réinitialisation.');
       } else {
         setResetSent(true);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      setErrorMsg('Le mot de passe doit comporter au moins 8 caractères.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const { error } = await updatePassword(newPassword);
+      if (error) {
+        setErrorMsg(error.message || 'Impossible de mettre à jour le mot de passe.');
+      } else {
+        setSuccessMsg('Mot de passe mis à jour avec succès !');
       }
     } finally {
       setIsLoading(false);
@@ -487,6 +529,63 @@ export const Login: React.FC = () => {
               )}
             </form>
           </Card>
+        </main>
+      )}
+
+      {mode === 'reset_password' && (
+        <main className="mx-auto flex min-h-dvh w-full max-w-[440px] flex-col gap-5 px-6 pb-6 pt-10 md:justify-center">
+          <div className="flex flex-col items-center gap-2.5 text-center">
+            <MartyMascot expression="ready" size={80} shadow={4} />
+            <h1 className="mt-1 text-[28px] font-extrabold leading-[1.05]">Nouveau mot de passe</h1>
+            <p className="max-w-[320px] text-[15px] font-medium text-muted">
+              Choisis un nouveau mot de passe sécurisé (au moins 8 caractères) pour ton compte.
+            </p>
+          </div>
+
+          <Card className="p-[22px]">
+            <form onSubmit={handleResetPasswordSubmit} className="flex flex-col gap-3.5">
+              {errorBanner}
+              {successMsg && <Banner tone="notice">{successMsg}</Banner>}
+
+              <Field label="Nouveau mot de passe" htmlFor="reset-new-password">
+                <PasswordInput
+                  id="reset-new-password"
+                  required
+                  autoComplete="new-password"
+                  minLength={8}
+                  placeholder="8 caractères minimum"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={bigField}
+                />
+              </Field>
+
+              <Field label="Confirmer le mot de passe" htmlFor="reset-confirm-password">
+                <PasswordInput
+                  id="reset-confirm-password"
+                  required
+                  autoComplete="new-password"
+                  minLength={8}
+                  placeholder="Répète ton mot de passe"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={bigField}
+                />
+              </Field>
+
+              <Button type="submit" size="lg" className="mt-1 w-full" isLoading={isLoading}>
+                Enregistrer mon mot de passe
+              </Button>
+            </form>
+          </Card>
+
+          <button
+            type="button"
+            onClick={signOut}
+            className="flex min-h-[44px] items-center justify-center text-[14px] font-bold text-muted hover:text-ink"
+          >
+            Annuler et me déconnecter
+          </button>
         </main>
       )}
 

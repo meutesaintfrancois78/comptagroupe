@@ -10,6 +10,7 @@ import { cn, parseAmount, formatCurrency, amountError, expenseDateError, todayLo
 import { processProofFile, ProcessedProof } from '@/lib/compression';
 import { supabase } from '@/lib/supabase';
 import { categoryIcon } from './ExpenseList';
+import { getCategoryIcon, isSystemCategory } from '@/lib/categoryIcons';
 import { getChefProofStorageKey, calculateDismissUntil } from '@/lib/bannerTimer';
 
 interface ExpenseMultiStepFormProps {
@@ -73,8 +74,8 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
   // Catégories actives seulement, « Autre » toujours en dernier comme dans la maquette
   const activeCategories = categories.filter((c) => c.is_active !== false);
   const orderedCategories = [
-    ...activeCategories.filter((c) => c.name !== 'Autre'),
-    ...activeCategories.filter((c) => c.name === 'Autre'),
+    ...activeCategories.filter((c) => !isSystemCategory(c)),
+    ...activeCategories.filter((c) => isSystemCategory(c)),
   ];
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -420,7 +421,7 @@ export const ExpenseMultiStepForm: React.FC<ExpenseMultiStepFormProps> = ({
             <div role="group" aria-label="Motif de la dépense" className="grid grid-cols-3 gap-2.5">
               {orderedCategories.map((cat) => {
                 const isSelected = categoryId === cat.id;
-                const Icon = categoryIcon(cat.name);
+                const Icon = getCategoryIcon(cat.icon, cat.name);
                 return (
                   <button
                     key={cat.id}

@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { MartyMascot } from '@/components/shared/MartyMascot';
 import { formatCurrency, sumAmounts } from '@/lib/utils';
 import { hasValidProof } from '@/lib/permissions';
+import { getCategoryIcon } from '@/lib/categoryIcons';
 import {
   calculateCategoryBreakdown,
   calculateBudgetStatus,
@@ -45,17 +46,15 @@ import { BudgetEditModal } from './BudgetEditModal';
 /* Aides d'affichage partagées par l'accueil, la liste et le formulaire */
 /* ------------------------------------------------------------------ */
 
-/** Icône d'une catégorie, devinée d'après son nom (les catégories viennent de la base) */
-export function categoryIcon(name: string | null | undefined): LucideIcon {
-  const n = (name || '').toLowerCase();
-  if (/autre/.test(n)) return Ellipsis;
-  if (/intendance|nourri|aliment|repas|course|cuisine/.test(n)) return ShoppingCart;
-  if (/transport|train|bus|voiture|essence|carbur|p[ée]age/.test(n)) return Bus;
-  if (/mat[ée]riel|[ée]quipement|outil|fourniture/.test(n)) return Package;
-  if (/h[ée]berg|logement|camp|tente|location/.test(n)) return Tent;
-  if (/pharma|soin|sant[ée]|m[ée]dic/.test(n)) return Cross;
-  if (/activit|sortie|loisir|billet|entr[ée]e/.test(n)) return Ticket;
-  return Receipt;
+/** Icône d'une catégorie : priorité au champ icon configuré par l'admin, fallback heuristique sur le nom */
+export function categoryIcon(
+  iconOrName?: { icon?: string | null; name?: string | null } | string | null,
+  fallbackName?: string | null
+): LucideIcon {
+  if (iconOrName && typeof iconOrName === 'object') {
+    return getCategoryIcon(iconOrName.icon, iconOrName.name);
+  }
+  return getCategoryIcon(iconOrName, fallbackName);
 }
 
 /** Motif affiché : la précision pour « Autre », sinon le nom de la catégorie */

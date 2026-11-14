@@ -148,7 +148,7 @@ export const ChefHome: React.FC<ChefHomeProps> = ({
       ) : (
         <ul className="grid grid-cols-1 gap-3 pb-2 pr-1.5" aria-label="Dernières dépenses">
           {recent.map((exp, i) => {
-            const Icon = categoryIcon(exp.category?.name || (exp.custom_category ? 'autre' : ''));
+            const Icon = categoryIcon(exp.category || (exp.custom_category ? 'autre' : ''));
             return (
               <li key={exp.id} className="flex">
                 <button
